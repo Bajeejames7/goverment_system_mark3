@@ -26,6 +26,7 @@ export default function ChatBot() {
   }));
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [wasUserDragged, setWasUserDragged] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -127,6 +128,7 @@ export default function ChatBot() {
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    setWasUserDragged(true); // Mark that user has manually moved the button
   };
 
   useEffect(() => {
@@ -140,13 +142,21 @@ export default function ChatBot() {
     }
   }, [isDragging, dragStart]);
 
-  // Handle window resize to keep button visible
+  // Handle window resize to keep button visible and return to default if not user-dragged
   useEffect(() => {
     const handleResize = () => {
+      const maxX = window.innerWidth - 80;
+      const maxY = window.innerHeight - 80;
+      const defaultX = window.innerWidth - 88;
+      const defaultY = window.innerHeight - 88;
+
       setPosition(prevPosition => {
-        const maxX = window.innerWidth - 80;
-        const maxY = window.innerHeight - 80;
+        // If user never dragged the button, always return to default position
+        if (!wasUserDragged) {
+          return { x: defaultX, y: defaultY };
+        }
         
+        // If user dragged it, keep it within bounds but don't auto-return to default
         return {
           x: Math.max(20, Math.min(prevPosition.x, maxX)),
           y: Math.max(20, Math.min(prevPosition.y, maxY))
@@ -156,7 +166,7 @@ export default function ChatBot() {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [wasUserDragged]);
 
   if (!isOpen) {
     return (
