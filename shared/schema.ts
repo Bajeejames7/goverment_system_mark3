@@ -32,7 +32,10 @@ export const letters = pgTable("letters", {
   folderId: integer("folder_id").references(() => folders.id),
   content: text("content"),
   fileName: text("file_name"),
-  fileUrl: text("file_url"),
+  fileSize: integer("file_size"),
+  fileType: text("file_type"),
+  filePath: text("file_path"), // Supabase storage path
+  fileUrl: text("file_url"), // Supabase public URL
   status: text("status").notNull().default("pending"), // 'pending', 'verified', 'rejected'
   verificationCode: text("verification_code").unique(),
   uploadedBy: text("uploaded_by").notNull(), // Firebase UID
