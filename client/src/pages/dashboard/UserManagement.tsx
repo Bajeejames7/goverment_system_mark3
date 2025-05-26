@@ -1,0 +1,228 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, UserPlus, Shield, Eye, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import CreateUserModal from "@/components/modals/CreateUserModal";
+import { User } from "@shared/schema";
+
+export default function UserManagement() {
+  const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
+
+  const { data: users = [], isLoading } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+  });
+
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'destructive';
+      case 'registry':
+        return 'default';
+      case 'officer':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return <Shield className="w-4 h-4" />;
+      case 'registry':
+        return <Eye className="w-4 h-4" />;
+      case 'officer':
+        return <Users className="w-4 h-4" />;
+      default:
+        return <Users className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusBadge = (isActive: boolean | null) => {
+    return isActive ? (
+      <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+        Active
+      </Badge>
+    ) : (
+      <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+        Inactive
+      </Badge>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">Manage system users and their access levels</p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="animate-pulse">
+          <CardHeader>
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const adminUsers = users.filter(user => user.role === 'admin');
+  const registryUsers = users.filter(user => user.role === 'registry');
+  const officerUsers = users.filter(user => user.role === 'officer');
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Manage system users and their access levels</p>
+        </div>
+        <Button 
+          onClick={() => setCreateUserModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <UserPlus className="w-4 h-4 mr-2" />
+          Register New User
+        </Button>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-red-200 dark:border-red-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-red-700 dark:text-red-300">
+              Administrators
+            </CardTitle>
+            <Shield className="h-4 w-4 text-red-600 dark:text-red-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-800 dark:text-red-200">{adminUsers.length}</div>
+            <p className="text-xs text-red-600 dark:text-red-400">
+              Full system access
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-200 dark:border-blue-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
+              Registry Officers
+            </CardTitle>
+            <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-800 dark:text-blue-200">{registryUsers.length}</div>
+            <p className="text-xs text-blue-600 dark:text-blue-400">
+              Document verification
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-green-200 dark:border-green-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
+              Field Officers
+            </CardTitle>
+            <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-800 dark:text-green-200">{officerUsers.length}</div>
+            <p className="text-xs text-green-600 dark:text-green-400">
+              Document upload
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Users Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            All System Users
+          </CardTitle>
+          <CardDescription>
+            Complete list of registered users with their roles and access levels
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Position</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    No users found. Create your first user to get started.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300">{user.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={getRoleBadgeVariant(user.role)} className="flex items-center gap-1 w-fit">
+                        {getRoleIcon(user.role)}
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300">{user.department}</TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300">
+                      {user.position || 'Not specified'}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(user.isActive)}</TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300">
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Create User Modal */}
+      <CreateUserModal 
+        open={createUserModalOpen} 
+        onOpenChange={setCreateUserModalOpen} 
+      />
+    </div>
+  );
+}
