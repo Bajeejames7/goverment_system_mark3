@@ -6,7 +6,7 @@ import ChatBot from "@/components/ChatBot";
 import Overview from "./dashboard/Overview";
 import Folders from "./dashboard/Folders";
 import Letters from "./dashboard/Letters";
-import Users from "./dashboard/Users";
+import UserManagement from "./dashboard/UserManagement";
 import Verification from "./dashboard/Verification";
 import Reports from "./dashboard/Reports";
 
@@ -33,7 +33,7 @@ export default function Dashboard() {
       case "/dashboard/letters":
         return <Letters />;
       case "/dashboard/users":
-        return <Users />;
+        return <UserManagement />;
       case "/dashboard/verification":
         return <Verification />;
       case "/dashboard/reports":
