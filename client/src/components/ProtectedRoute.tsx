@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requiredRole, adminOnly }: ProtectedRouteProps) {
-  const { user, userRole, loading } = useAuth();
+  const { firebaseUser, user, userRole, loading } = useAuth();
   const [, setLocation] = useLocation();
 
   if (loading) {
@@ -20,7 +20,7 @@ export default function ProtectedRoute({ children, requiredRole, adminOnly }: Pr
     );
   }
 
-  if (!user) {
+  if (!firebaseUser) {
     setLocation("/login-selection");
     return null;
   }

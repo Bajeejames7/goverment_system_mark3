@@ -22,7 +22,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const { type } = useParams() as { type: string };
-  const { user, loading } = useAuth();
+  const { firebaseUser, loading } = useAuth();
   const { toast } = useToast();
   const { isDark, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
@@ -40,10 +40,10 @@ export default function Login() {
 
   // Use useEffect to handle navigation to prevent state update during render
   useEffect(() => {
-    if (user) {
+    if (firebaseUser) {
       setLocation("/dashboard");
     }
-  }, [user, setLocation]);
+  }, [firebaseUser, setLocation]);
 
   if (loading) {
     return (
@@ -53,7 +53,7 @@ export default function Login() {
     );
   }
 
-  if (user) {
+  if (firebaseUser) {
     return null;
   }
 
