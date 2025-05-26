@@ -44,11 +44,15 @@ export class FirebaseStorage implements IStorage {
   
   async getUser(id: number): Promise<User | undefined> {
     try {
+      if (!firestore) {
+        console.error('Firestore not initialized');
+        return undefined;
+      }
       const usersRef = firestore.collection('users');
       const snapshot = await usersRef.where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       const doc = snapshot.docs[0];
-      return { id: doc.id, ...doc.data() } as User;
+      return { ...doc.data() } as User;
     } catch (error) {
       console.error('Error getting user:', error);
       return undefined;

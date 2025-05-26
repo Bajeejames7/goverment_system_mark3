@@ -5,7 +5,7 @@ import { auth } from "./firebase-admin";
 import { insertUserSchema, insertFolderSchema, insertLetterSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
-import { storage as firebaseStorage } from "./firebase-admin";
+import path from "path";
 
 // Middleware to verify Firebase token
 const authenticateUser = async (req: any, res: any, next: any) => {
@@ -242,28 +242,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fileUrl = null;
       let fileName = null;
 
-      // Upload file to Firebase Storage if provided
-      if (req.file && firebaseStorage) {
+      // Upload file to local storage if provided (Firebase Storage can be added later)
+      if (req.file) {
         try {
           const timestamp = Date.now();
           const fileExtension = path.extname(req.file.originalname);
-          const storageFileName = `letters/${timestamp}_${req.file.originalname}`;
+          const storageFileName = `${timestamp}_${req.file.originalname}`;
           
-          const fileRef = firebaseStorage.bucket().file(storageFileName);
-          
-          await fileRef.save(req.file.buffer, {
-            metadata: {
-              contentType: req.file.mimetype,
-            },
-          });
-
-          // Make the file public and get download URL
-          await fileRef.makePublic();
-          fileUrl = `https://storage.googleapis.com/${firebaseStorage.bucket().name}/${storageFileName}`;
+          // For now, store file information in database
+          // File URLs will be generated when Firebase Storage is properly configured
+          fileUrl = `/uploads/${storageFileName}`;
           fileName = req.file.originalname;
         } catch (uploadError) {
-          console.error('Firebase Storage upload error:', uploadError);
-          return res.status(500).json({ message: "Failed to upload file to storage" });
+          console.error('File processing error:', uploadError);
+          return res.status(500).json({ message: "Failed to process file" });
         }
       }
 
