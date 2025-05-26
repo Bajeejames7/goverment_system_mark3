@@ -40,10 +40,10 @@ export default function Login() {
 
   // Use useEffect to handle navigation to prevent state update during render
   useEffect(() => {
-    if (firebaseUser) {
+    if (supabaseUser) {
       setLocation("/dashboard");
     }
-  }, [firebaseUser, setLocation]);
+  }, [supabaseUser, setLocation]);
 
   if (loading) {
     return (
@@ -53,7 +53,7 @@ export default function Login() {
     );
   }
 
-  if (firebaseUser) {
+  if (supabaseUser) {
     return null;
   }
 
