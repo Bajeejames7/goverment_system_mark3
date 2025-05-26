@@ -71,22 +71,14 @@ export default function Login() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // Use the API login endpoint for ICT admin
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
+      // Direct Supabase authentication for ICT Admin
+      const { signInWithEmail } = await import('@/lib/supabase');
+      
+      const result = await signInWithEmail(data.email, data.password);
+      
+      if (result.success && result.user) {
         // Store the token for API calls
-        localStorage.setItem('authToken', result.token);
+        localStorage.setItem('authToken', result.session?.access_token || 'ict-admin-token');
         
         toast({
           title: "Success",

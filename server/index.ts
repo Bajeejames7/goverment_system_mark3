@@ -37,19 +37,25 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Setup API routes BEFORE any middleware that might interfere
   const server = await registerRoutes(app);
 
+  // Error handler for API routes
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    // Only handle API errors, let others pass through
+    if (_req.path.startsWith('/api/')) {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(status);
+      res.end(JSON.stringify({ message }));
+      return;
+    }
+    _next(err);
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // Setup Vite AFTER API routes are established
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {

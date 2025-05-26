@@ -71,11 +71,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test endpoint to verify API routing works
   app.get("/api/test", (req, res) => {
     console.log("TEST endpoint hit!");
-    res.json({ message: "API routes working!" });
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ message: "API routes working!" }));
   });
   
-  // ICT Admin login endpoint - simplified for immediate working
-  app.post("/api/auth/login", async (req, res) => {
+  // ICT Admin login endpoint - bypass Vite interference
+  app.post("/api/auth/login", (req, res, next) => {
+    // Immediately stop any further middleware processing
+    res.headersSent = false;
+    
     try {
       console.log("=== API LOGIN CALLED ===", req.body);
       const { email, password } = req.body;
@@ -98,18 +102,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           token: 'ict-admin-token-james-bajee-2025'
         };
         
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(200).json(response);
+        // Force immediate response without any middleware interference
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Content-Length': Buffer.byteLength(JSON.stringify(response))
+        });
+        res.end(JSON.stringify(response));
+        return;
       }
       
       console.log("Invalid credentials provided");
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(401).json({ message: "Invalid credentials" });
+      const errorResponse = { message: "Invalid credentials" };
+      res.writeHead(401, {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(JSON.stringify(errorResponse))
+      });
+      res.end(JSON.stringify(errorResponse));
+      return;
       
     } catch (error) {
       console.error("Login error:", error);
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(500).json({ message: "Login failed" });
+      const errorResponse = { message: "Login failed" };
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(JSON.stringify(errorResponse))
+      });
+      res.end(JSON.stringify(errorResponse));
+      return;
     }
   });
 
