@@ -62,6 +62,14 @@ export default function Dashboard() {
         </main>
       </div>
       
+      {/* Debug: Simple test element */}
+      <div 
+        className="fixed bottom-4 left-4 bg-green-500 text-white p-2 rounded z-[9999]"
+        style={{ position: 'fixed', zIndex: 9999 }}
+      >
+        Dashboard Loaded
+      </div>
+      
       <ChatBot />
     </div>
   );
