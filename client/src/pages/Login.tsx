@@ -38,6 +38,13 @@ export default function Login() {
     },
   });
 
+  // Use useEffect to handle navigation to prevent state update during render
+  useEffect(() => {
+    if (user) {
+      setLocation("/dashboard");
+    }
+  }, [user, setLocation]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
@@ -45,13 +52,6 @@ export default function Login() {
       </div>
     );
   }
-
-  // Use useEffect to handle navigation to prevent state update during render
-  useEffect(() => {
-    if (user) {
-      setLocation("/dashboard");
-    }
-  }, [user, setLocation]);
 
   if (user) {
     return null;
