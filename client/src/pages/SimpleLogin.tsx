@@ -4,12 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/SimpleAuthContext";
 
 export default function SimpleLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [, setLocation] = useLocation();
 
+  const { login } = useAuth();
+  
   const handleLogin = () => {
     // Simple direct login for ICT Admin
     if (email === "jamesbajee3579@gmail.com" && password === "J@m3$b@j33") {
@@ -24,8 +27,7 @@ export default function SimpleLogin() {
         canAddUsers: true
       };
       
-      localStorage.setItem("user", JSON.stringify(userData));
-      localStorage.setItem("authToken", "ict-admin-token");
+      login(userData);
       
       toast({
         title: "Welcome back!",
