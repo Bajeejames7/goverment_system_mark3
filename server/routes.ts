@@ -66,42 +66,77 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Login endpoint for ICT Admin - must be before other routes
+  // Supabase authentication login endpoint
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("Login attempt:", req.body);
       const { email, password } = req.body;
+      const { supabase, createICTAdmin } = await import('./supabase');
       
-      // Check if it's the ICT admin login
-      if (email === adminCredentials.email && password === adminCredentials.password) {
-        // Return success with user data
-        const response = {
-          success: true,
-          user: {
-            id: 1,
-            email: 'jamesbajee3579@gmail.com',
-            name: 'James Bajee',
-            role: 'admin',
-            department: 'ICT',
-            position: 'department_head',
-            canAddUsers: true
-          },
-          token: 'ict-admin-token-james-bajee'
-        };
+      // Try to authenticate with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) {
+        // If ICT admin doesn't exist, create it
+        if (email === 'jamesbajee3579@gmail.com') {
+          console.log("Creating ICT admin account...");
+          await createICTAdmin();
+          
+          // Try login again after creation
+          const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (retryError) {
+            res.status(401).json({ message: "Authentication failed" });
+            return;
+          }
+          
+          // Return success for ICT admin
+          res.json({
+            success: true,
+            user: {
+              id: 1,
+              email: 'jamesbajee3579@gmail.com',
+              name: 'James Bajee',
+              role: 'admin',
+              department: 'ICT',
+              position: 'department_head',
+              canAddUsers: true
+            },
+            token: retryData.session?.access_token
+          });
+          return;
+        }
         
-        res.setHeader('Content-Type', 'application/json');
-        res.status(200).json(response);
-        return;
-      } else {
-        res.setHeader('Content-Type', 'application/json');
         res.status(401).json({ message: "Invalid credentials" });
         return;
       }
+
+      // Get user profile from database
+      const { data: userProfile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      res.json({
+        success: true,
+        user: userProfile || {
+          email: authData.user.email,
+          name: authData.user.user_metadata?.name || 'User',
+          role: 'admin',
+          department: 'ICT'
+        },
+        token: authData.session?.access_token
+      });
+
     } catch (error) {
       console.error("Login error:", error);
-      res.setHeader('Content-Type', 'application/json');
       res.status(500).json({ message: "Login failed" });
-      return;
     }
   });
 
