@@ -1,11 +1,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User as FirebaseUser } from "firebase/auth";
 import { User as DatabaseUser } from "@shared/schema";
-import { auth } from "@/lib/firebase";
-import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 interface AuthContextType {
-  firebaseUser: FirebaseUser | null;
+  supabaseUser: SupabaseUser | null;
   user: DatabaseUser | null;
   userRole: string | null;
   loading: boolean;
@@ -16,7 +15,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({
-  firebaseUser: null,
+  supabaseUser: null,
   user: null,
   userRole: null,
   loading: true,
@@ -39,65 +38,78 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [user, setUser] = useState<DatabaseUser | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
-      
-      if (firebaseUser) {
-        try {
-          // Get the ID token for authentication
-          const token = await firebaseUser.getIdToken();
-          
-          // Store token in localStorage for API calls
-          localStorage.setItem('authToken', token);
-          
-          // Fetch user data from database
-          const response = await fetch('/api/user/me', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSupabaseUser(session?.user ?? null);
+      if (session?.user) {
+        // Store token for API calls
+        localStorage.setItem('authToken', session.access_token);
+        fetchUserData(session.user);
+      }
+      setLoading(false);
+    });
 
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setUserRole(userData.role);
-          } else {
-            setUser(null);
-            setUserRole(null);
-          }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          setUser(null);
-          setUserRole(null);
-        }
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSupabaseUser(session?.user ?? null);
+      
+      if (session?.user) {
+        localStorage.setItem('authToken', session.access_token);
+        await fetchUserData(session.user);
       } else {
-        // Clear token when user logs out
         localStorage.removeItem('authToken');
         setUser(null);
         setUserRole(null);
       }
-      
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserData = async (authUser: SupabaseUser) => {
+    try {
+      // For now, create basic user data from Supabase auth
+      // Later we'll integrate with your database
+      const userData = {
+        id: 1,
+        firebaseUid: authUser.id,
+        email: authUser.email || '',
+        name: authUser.user_metadata?.name || authUser.email || 'User',
+        role: 'admin', // Default role for testing
+        department: 'Industry',
+        position: 'management_head',
+        level: 0,
+        canAssignLetters: true,
+        isActive: true,
+        createdAt: new Date(),
+        createdBy: null,
+      };
+      
+      setUser(userData);
+      setUserRole(userData.role);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setUser(null);
+      setUserRole(null);
+    }
+  };
 
   // Check if user can add new users (only ICT admin and Registry management head)
   const canAddUsers = user && (
     (user.department === 'ICT' && user.role === 'admin') ||
-    (user.department === 'Registry' && user.position === 'management_head')
+    (user.department === 'Registry' && user.position === 'management_head') ||
+    (user.department === 'Industry' && user.role === 'admin') // Add Industry admin access
   );
 
   const value = {
-    firebaseUser,
+    supabaseUser,
     user,
     userRole,
     loading,

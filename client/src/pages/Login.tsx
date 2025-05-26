@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useLocation } from "wouter";
-import { loginWithEmail } from "@/lib/auth";
+import { signInWithEmail } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -22,7 +22,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const { type } = useParams() as { type: string };
-  const { firebaseUser, loading } = useAuth();
+  const { supabaseUser, loading } = useAuth();
   const { toast } = useToast();
   const { isDark, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
@@ -71,10 +71,10 @@ export default function Login() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      await loginWithEmail(data.email, data.password);
+      await signInWithEmail(data.email, data.password);
       toast({
         title: "Success",
-        description: "Login successful! Welcome to RMU System.",
+        description: "Login successful! Welcome to Industry Department RMU System.",
       });
     } catch (error) {
       toast({
