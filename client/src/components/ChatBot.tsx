@@ -20,7 +20,10 @@ export default function ChatBot() {
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [position, setPosition] = useState({ x: 24, y: 24 }); // Position from bottom-right
+  const [position, setPosition] = useState(() => ({
+    x: window.innerWidth - 88, // 64px button width + 24px margin from right
+    y: window.innerHeight - 88  // 64px button height + 24px margin from bottom
+  }));
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
