@@ -92,7 +92,7 @@ export class SimpleStorage implements ISimpleStorage {
 
   async getAllLetters(): Promise<Letter[]> {
     try {
-      return await db.select().from(letters).orderBy(desc(letters.createdAt));
+      return await db.select().from(letters).orderBy(desc(letters.uploadedAt));
     } catch (error) {
       console.error('Error getting all letters:', error);
       return [];
@@ -130,7 +130,7 @@ export class SimpleStorage implements ISimpleStorage {
 
   async getRecentAuditLogs(limit: number): Promise<AuditLog[]> {
     try {
-      return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit);
+      return await db.select().from(auditLogs).orderBy(desc(auditLogs.timestamp)).limit(limit);
     } catch (error) {
       console.error('Error getting recent audit logs:', error);
       return [];

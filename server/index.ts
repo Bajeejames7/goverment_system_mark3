@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerSimpleRoutes } from "./simple-routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -38,7 +38,7 @@ app.use((req, res, next) => {
 
 (async () => {
   // Setup API routes BEFORE any middleware that might interfere
-  const server = await registerRoutes(app);
+  const server = await registerSimpleRoutes(app);
 
   // Error handler for API routes
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

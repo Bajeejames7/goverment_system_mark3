@@ -1,5 +1,5 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/SimpleAuthContext";
 import { useLocation } from "wouter";
 import ChatBot from "@/components/ChatBot";
 
