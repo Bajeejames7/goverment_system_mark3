@@ -24,9 +24,13 @@ const authenticateUser = async (req: any, res: any, next: any) => {
     
     next();
   } catch (error) {
+    console.error("Token verification error:", error);
     res.status(401).json({ message: "Invalid token" });
   }
 };
+
+// Simplified auth for development - remove in production
+const requireAuth = authenticateUser;
 
 // Middleware to check admin role
 const requireAdmin = (req: any, res: any, next: any) => {

@@ -53,6 +53,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Get the ID token for authentication
           const token = await firebaseUser.getIdToken();
           
+          // Store token in localStorage for API calls
+          localStorage.setItem('authToken', token);
+          
           // Fetch user data from database
           const response = await fetch('/api/user/me', {
             headers: {
@@ -75,6 +78,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setUserRole(null);
         }
       } else {
+        // Clear token when user logs out
+        localStorage.removeItem('authToken');
         setUser(null);
         setUserRole(null);
       }

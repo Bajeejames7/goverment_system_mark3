@@ -8,7 +8,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   role: text("role").notNull(), // 'admin', 'registry', 'ps', 'officer', 'secretary'
-  department: text("department"), // 'Admin', 'Fin', 'Acc', 'ICT', 'Comm', 'HRM', 'Legal', 'InternAudit', 'Procurement', 'Planning'
+  department: text("department").default("Industry"), // Focus on Industry department only
   position: text("position"), // 'Secretary', 'PS', 'AD', 'DFS', 'CHEM_MIN', 'MIP', 'ENG', 'KIN', 'Registry'
   level: integer("level").default(0), // 0=Secretary, 1=PS, 2=Departments, 3=Officers
   canAssignLetters: boolean("can_assign_letters").default(false),

@@ -28,9 +28,21 @@ export default function CreateFolderModal({ open, onOpenChange }: CreateFolderMo
     defaultValues: {
       name: "",
       description: "",
-      department: "",
+      department: "Industry", // Default to Industry department
     },
   });
+
+  // Industry department sections only
+  const industrySections = [
+    "Manufacturing",
+    "Trade & Commerce", 
+    "Industrial Development",
+    "Export Promotion",
+    "Quality Standards",
+    "Industrial Policy",
+    "SME Development",
+    "Investment Promotion"
+  ];
 
   const createFolderMutation = useMutation({
     mutationFn: async (data: CreateFolderFormData) => {
@@ -89,17 +101,17 @@ export default function CreateFolderModal({ open, onOpenChange }: CreateFolderMo
           </div>
           
           <div>
-            <Label htmlFor="department">Department</Label>
+            <Label htmlFor="department">Industry Section</Label>
             <Select 
               value={form.watch("department")} 
               onValueChange={(value) => form.setValue("department", value)}
             >
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select department" />
+                <SelectValue placeholder="Select industry section" />
               </SelectTrigger>
               <SelectContent>
-                {departments.map((dept) => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                {industrySections.map((section) => (
+                  <SelectItem key={section} value={section}>{section}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
