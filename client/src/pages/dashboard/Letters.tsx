@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Download, Eye } from "lucide-react";
 import UploadLetterModal from "@/components/modals/UploadLetterModal";
+import DocumentPreview from "@/components/DocumentPreview";
 
 export default function Letters() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -107,11 +110,24 @@ export default function Letters() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                            <i className="fas fa-file-alt text-white"></i>
+                            {letter.fileName ? (
+                              letter.fileName.endsWith('.pdf') ? (
+                                <span className="text-white text-lg">📄</span>
+                              ) : (
+                                <span className="text-white text-lg">📝</span>
+                              )
+                            ) : (
+                              <FileText className="h-5 w-5 text-white" />
+                            )}
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900 dark:text-white">{letter.title}</div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">{letter.reference}</div>
+                            {letter.fileName && (
+                              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                📎 {letter.fileName}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -127,9 +143,45 @@ export default function Letters() {
                         {new Date(letter.uploadedAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-700 mr-3">View</button>
-                        <button className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 mr-3">Edit</button>
-                        <button className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Delete</button>
+                        <div className="flex items-center gap-2">
+                          {letter.fileName && letter.fileUrl ? (
+                            <DocumentPreview
+                              fileName={letter.fileName}
+                              fileUrl={letter.fileUrl}
+                              uploadedAt={new Date(letter.uploadedAt)}
+                            >
+                              <Button variant="outline" size="sm" className="gap-1">
+                                <Eye className="h-3 w-3" />
+                                Preview
+                              </Button>
+                            </DocumentPreview>
+                          ) : (
+                            <Button variant="outline" size="sm" disabled className="gap-1">
+                              <FileText className="h-3 w-3" />
+                              No File
+                            </Button>
+                          )}
+                          
+                          {letter.fileName && letter.fileUrl && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = letter.fileUrl;
+                                link.download = letter.fileName;
+                                link.target = '_blank';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }}
+                              className="gap-1"
+                            >
+                              <Download className="h-3 w-3" />
+                              Download
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

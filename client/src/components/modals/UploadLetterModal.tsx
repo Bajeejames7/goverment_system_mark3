@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/lib/firebase";
 
 interface UploadLetterModalProps {
   open: boolean;
@@ -43,21 +45,29 @@ export default function UploadLetterModal({ open, onOpenChange }: UploadLetterMo
     mutationFn: async (data: UploadLetterFormData) => {
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
-        formData.append(key, value.toString());
+        if (value !== null && value !== undefined) {
+          formData.append(key, value.toString());
+        }
       });
       if (selectedFile) {
         formData.append("file", selectedFile);
       }
       
+      // Get Firebase auth token
+      const token = await auth.currentUser?.getIdToken();
+      
       const response = await fetch("/api/letters/upload", {
         method: "POST",
         body: formData,
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
         credentials: "include",
       });
       
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error);
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to upload letter");
       }
       
       return response.json();
@@ -160,16 +170,33 @@ export default function UploadLetterModal({ open, onOpenChange }: UploadLetterMo
           </div>
           
           <div>
-            <Label htmlFor="file">Attach File (Optional)</Label>
+            <Label htmlFor="file">Attach Document (PDF or Word)</Label>
             <Input
               id="file"
               type="file"
               onChange={handleFileChange}
               className="mt-1"
-              accept=".pdf,.doc,.docx,.txt"
+              accept=".pdf,.doc,.docx"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, Word Document (.doc, .docx). Max size: 50MB
+            </p>
             {selectedFile && (
-              <p className="text-sm text-gray-600 mt-1">Selected: {selectedFile.name}</p>
+              <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">
+                    {selectedFile.name.endsWith('.pdf') ? '📄' : '📝'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100 truncate">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
           
