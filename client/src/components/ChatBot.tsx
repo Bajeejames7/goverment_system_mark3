@@ -167,15 +167,20 @@ export default function ChatBot() {
 
   return (
     <>
-      {/* Chat Toggle Button */}
+      {/* Chat Toggle Button - Enhanced Visibility */}
       {!isOpen && (
-        <Button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg z-50 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition-all duration-200 pulse-animation"
-          aria-label="Open RMU Assistant"
-        >
-          <Bot className="h-8 w-8 text-white" />
-        </Button>
+        <div className="fixed bottom-6 right-6 z-[9999]" style={{ position: 'fixed', zIndex: 9999 }}>
+          <Button
+            onClick={() => setIsOpen(true)}
+            className="h-20 w-20 rounded-full shadow-2xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 pulse-animation border-4 border-white dark:border-gray-800 group"
+            aria-label="Open RMU Assistant"
+          >
+            <div className="flex flex-col items-center">
+              <Bot className="h-10 w-10 text-white mb-1 group-hover:scale-110 transition-transform" />
+              <span className="text-xs text-white font-semibold">Help</span>
+            </div>
+          </Button>
+        </div>
       )}
 
       {/* Chat Window */}
