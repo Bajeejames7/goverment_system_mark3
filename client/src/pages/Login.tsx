@@ -71,11 +71,38 @@ export default function Login() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      await signInWithEmail(data.email, data.password);
-      toast({
-        title: "Success",
-        description: "Login successful! Welcome to Industry Department RMU System.",
+      // Use the API login endpoint for ICT admin
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        // Store the token for API calls
+        localStorage.setItem('authToken', result.token);
+        
+        toast({
+          title: "Success",
+          description: `Welcome ${result.user.name}! ICT Administrator access granted.`,
+        });
+        
+        // Redirect to dashboard
+        setLocation("/dashboard");
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.message || "Invalid credentials",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       toast({
         title: "Error",

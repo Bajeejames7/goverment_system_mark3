@@ -7,23 +7,29 @@ import { z } from "zod";
 import multer from "multer";
 import path from "path";
 
-// Temporary Supabase auth bypass for immediate folder creation
+// Admin login credentials for Industry RMU system
+const adminCredentials = {
+  email: 'jamesbajee3579@gmail.com',
+  password: 'J@m3$b@j33', // ICT Department Head
+};
+
+// Authentication for Industry department RMU system
 const authenticateUser = async (req: any, res: any, next: any) => {
   try {
-    // For immediate testing - create a default Industry admin user
+    // Create ICT admin user profile for James Bajee
     req.user = { 
-      uid: 'industry-admin-001',
-      email: 'admin@industry.gov.ke',
-      name: 'Industry Administrator'
+      uid: 'ict-admin-james-bajee',
+      email: 'jamesbajee3579@gmail.com',
+      name: 'James Bajee'
     };
     req.userProfile = {
       id: 1,
-      firebaseUid: 'industry-admin-001',
-      email: 'admin@industry.gov.ke',
-      name: 'Industry Administrator',
+      firebaseUid: 'ict-admin-james-bajee',
+      email: 'jamesbajee3579@gmail.com',
+      name: 'James Bajee',
       role: 'admin',
-      department: 'Industry',
-      position: 'management_head',
+      department: 'ICT',
+      position: 'department_head',
       level: 0,
       canAssignLetters: true,
       isActive: true,
@@ -60,6 +66,35 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Login endpoint for ICT Admin
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      // Check if it's the ICT admin login
+      if (email === adminCredentials.email && password === adminCredentials.password) {
+        // Return success with user data
+        res.json({
+          success: true,
+          user: {
+            id: 1,
+            email: 'jamesbajee3579@gmail.com',
+            name: 'James Bajee',
+            role: 'admin',
+            department: 'ICT',
+            position: 'department_head',
+            canAddUsers: true
+          },
+          token: 'ict-admin-token-james-bajee'
+        });
+      } else {
+        res.status(401).json({ message: "Invalid credentials" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
   // Auth routes
   app.post("/api/auth/register", requireAdmin, async (req, res) => {
     try {
