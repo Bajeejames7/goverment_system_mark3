@@ -38,7 +38,7 @@ export default function Header({ title, onSidebarToggle }: HeaderProps) {
             {/* Dark Mode Toggle */}
             <button 
               onClick={toggleTheme}
-              className="p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+              className="p-3 rounded-full bg-gray-800 dark:bg-white shadow-lg border border-gray-800 dark:border-white text-white dark:text-gray-800 hover:bg-gray-700 dark:hover:bg-gray-100 transition-all duration-200"
               aria-label="Toggle theme"
             >
               {isDark ? (

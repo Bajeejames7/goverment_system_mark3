@@ -26,7 +26,7 @@ export default function LoginSelection() {
       {/* Theme Toggle Button */}
       <button
         onClick={toggleTheme}
-        className="fixed top-4 right-4 p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 z-50"
+        className="fixed top-4 right-4 p-3 rounded-full bg-gray-800 dark:bg-white shadow-lg border border-gray-800 dark:border-white text-white dark:text-gray-800 hover:bg-gray-700 dark:hover:bg-gray-100 transition-all duration-200 z-50"
         aria-label="Toggle theme"
       >
         {isDark ? (
