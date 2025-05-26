@@ -44,7 +44,7 @@ export default function LoginSelection() {
         <div className="text-center">
           <div className="mx-auto h-20 w-20 mb-6 flex items-center justify-center">
             <img 
-              src="/attached_assets/Republic_of_kenya_logo.jpeg" 
+              src="/Republic_of_kenya_logo.jpeg" 
               alt="Republic of Kenya Logo" 
               className="h-20 w-20 object-contain"
             />

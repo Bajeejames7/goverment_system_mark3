@@ -9,6 +9,7 @@ import Letters from "./dashboard/Letters";
 import UserManagement from "./dashboard/UserManagement";
 import Verification from "./dashboard/Verification";
 import Reports from "./dashboard/Reports";
+import Routing from "./dashboard/Routing";
 
 export default function Dashboard() {
   const [location] = useLocation();
