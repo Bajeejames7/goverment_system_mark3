@@ -20,6 +20,9 @@ export default function ChatBot() {
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [position, setPosition] = useState({ x: 24, y: 24 }); // Position from bottom-right
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -94,16 +97,68 @@ export default function ChatBot() {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    // Keep button within screen bounds
+    const maxX = window.innerWidth - 80; // button width + some padding
+    const maxY = window.innerHeight - 80; // button height + some padding
+    
+    setPosition({
+      x: Math.max(20, Math.min(newX, maxX)),
+      y: Math.max(20, Math.min(newY, maxY))
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragStart]);
+
   if (!isOpen) {
     return (
       <div 
-        className="fixed bottom-6 right-6 z-50"
-        style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 50 }}
+        className="fixed z-50"
+        style={{ 
+          position: 'fixed', 
+          left: `${position.x}px`, 
+          top: `${position.y}px`, 
+          zIndex: 50,
+          cursor: isDragging ? 'grabbing' : 'grab'
+        }}
       >
         <button
-          onClick={() => setIsOpen(true)}
-          className="w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 pulse-animation"
+          onMouseDown={handleMouseDown}
+          onClick={(e) => {
+            if (!isDragging) {
+              setIsOpen(true);
+            }
+          }}
+          className="w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 pulse-animation select-none"
           aria-label="Open RMU Assistant"
+          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
         >
           <Bot className="w-8 h-8" />
         </button>
