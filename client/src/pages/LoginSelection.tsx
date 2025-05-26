@@ -42,8 +42,12 @@ export default function LoginSelection() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto h-20 w-20 bg-blue-600 rounded-full flex items-center justify-center mb-6">
-            <i className="fas fa-university text-white text-2xl"></i>
+          <div className="mx-auto h-20 w-20 mb-6 flex items-center justify-center">
+            <img 
+              src="/attached_assets/Republic_of_kenya_logo.jpeg" 
+              alt="Republic of Kenya Logo" 
+              className="h-20 w-20 object-contain"
+            />
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">RMU Government System</h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Department of Industry</p>
