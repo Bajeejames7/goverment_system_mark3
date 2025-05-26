@@ -1,4 +1,4 @@
-import { User, InsertUser, Folder, InsertFolder, Letter, InsertLetter, AuditLog, InsertAuditLog } from "@shared/schema";
+import { User, InsertUser, Folder, InsertFolder, Letter, InsertLetter, AuditLog, InsertAuditLog, RoutingRule, InsertRoutingRule, DocumentRouting, InsertDocumentRouting } from "@shared/schema";
 import { firestore } from './firebase-admin';
 
 export interface IStorage {
@@ -30,6 +30,24 @@ export interface IStorage {
   // Audit Logs
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getRecentAuditLogs(limit: number): Promise<AuditLog[]>;
+  
+  // Routing Rules
+  getRoutingRule(id: number): Promise<RoutingRule | undefined>;
+  getRoutingRulesByDepartment(department: string): Promise<RoutingRule[]>;
+  getAllRoutingRules(): Promise<RoutingRule[]>;
+  createRoutingRule(rule: InsertRoutingRule): Promise<RoutingRule>;
+  updateRoutingRule(id: number, rule: Partial<RoutingRule>): Promise<RoutingRule | undefined>;
+  
+  // Document Routing
+  getDocumentRouting(id: number): Promise<DocumentRouting | undefined>;
+  getDocumentRoutingByLetter(letterId: number): Promise<DocumentRouting[]>;
+  getAllDocumentRoutings(): Promise<DocumentRouting[]>;
+  createDocumentRouting(routing: InsertDocumentRouting): Promise<DocumentRouting>;
+  updateDocumentRouting(id: number, routing: Partial<DocumentRouting>): Promise<DocumentRouting | undefined>;
+  
+  // Automated Routing
+  evaluateRoutingRules(letter: Letter, userDepartment: string): Promise<RoutingRule[]>;
+  routeDocument(letterId: number, userId: string): Promise<DocumentRouting[]>;
   
   // Stats
   getStats(): Promise<{

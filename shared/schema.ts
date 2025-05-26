@@ -52,6 +52,32 @@ export const auditLogs = pgTable("audit_logs", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+export const routingRules = pgTable("routing_rules", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  department: text("department").notNull(),
+  conditions: jsonb("conditions").notNull(), // JSON object defining routing conditions
+  targetDepartment: text("target_department").notNull(),
+  priority: integer("priority").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: text("created_by").notNull(),
+  description: text("description"),
+});
+
+export const documentRouting = pgTable("document_routing", {
+  id: serial("id").primaryKey(),
+  letterId: integer("letter_id").references(() => letters.id),
+  fromDepartment: text("from_department").notNull(),
+  toDepartment: text("to_department").notNull(),
+  routingRuleId: integer("routing_rule_id").references(() => routingRules.id),
+  status: text("status").notNull().default("pending"), // pending, in_transit, delivered, rejected
+  routedAt: timestamp("routed_at").defaultNow(),
+  deliveredAt: timestamp("delivered_at"),
+  notes: text("notes"),
+  routedBy: text("routed_by").notNull(),
+});
+
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -75,6 +101,17 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   timestamp: true,
 });
 
+export const insertRoutingRuleSchema = createInsertSchema(routingRules).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDocumentRoutingSchema = createInsertSchema(documentRouting).omit({
+  id: true,
+  routedAt: true,
+  deliveredAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -84,6 +121,10 @@ export type Letter = typeof letters.$inferSelect;
 export type InsertLetter = z.infer<typeof insertLetterSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type RoutingRule = typeof routingRules.$inferSelect;
+export type InsertRoutingRule = z.infer<typeof insertRoutingRuleSchema>;
+export type DocumentRouting = typeof documentRouting.$inferSelect;
+export type InsertDocumentRouting = z.infer<typeof insertDocumentRoutingSchema>;
 
 // Extended schemas for forms
 export const createUserFormSchema = insertUserSchema.extend({
