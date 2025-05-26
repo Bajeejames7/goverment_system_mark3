@@ -5,16 +5,10 @@ import ChatBot from "@/components/ChatBot";
 
 export default function LoginSelection() {
   const { isDark, toggleTheme } = useTheme();
-  const { user, loading } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Remove loading check since SimpleAuthContext doesn't have loading
 
   if (user) {
     setLocation("/dashboard");

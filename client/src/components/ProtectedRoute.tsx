@@ -9,28 +9,20 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requiredRole, adminOnly }: ProtectedRouteProps) {
-  const { firebaseUser, user, userRole, loading } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (!firebaseUser) {
-    setLocation("/login-selection");
+  if (!isAuthenticated || !user) {
+    setLocation("/simple-login");
     return null;
   }
 
-  if (adminOnly && userRole !== 'admin') {
+  if (adminOnly && user.role !== 'ICT Administrator') {
     setLocation("/dashboard");
     return null;
   }
 
-  if (requiredRole && userRole !== requiredRole) {
+  if (requiredRole && user.role !== requiredRole) {
     setLocation("/dashboard");
     return null;
   }
