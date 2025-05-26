@@ -288,20 +288,7 @@ export default function ChatBot() {
         </Card>
       )}
       
-      <style jsx>{`
-        .pulse-animation {
-          animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-          0%, 100% {
-            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-          }
-          50% {
-            box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
-          }
-        }
-      `}</style>
+
     </>
   );
 }

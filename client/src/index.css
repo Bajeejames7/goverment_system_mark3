@@ -193,3 +193,17 @@
 .status-rejected {
   @apply bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400;
 }
+
+/* Chatbot pulse animation */
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+}
