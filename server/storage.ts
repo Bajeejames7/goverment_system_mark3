@@ -58,7 +58,7 @@ export interface IStorage {
   }>;
 }
 
-export class DatabaseStorage implements IStorage {
+export class FirebaseStorage implements IStorage {
   
   async getUser(id: number): Promise<User | undefined> {
     try {
@@ -409,4 +409,4 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new FirebaseStorage();

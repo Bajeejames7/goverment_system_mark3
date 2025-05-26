@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/SimpleAuthContext";
-// Using Supabase instead of Firebase
+import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/lib/firebase";
 
 interface UploadLetterModalProps {
   open: boolean;

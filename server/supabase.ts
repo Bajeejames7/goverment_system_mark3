@@ -1,56 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
 // We'll need these environment variables from your Supabase project
-const supabaseUrl = 'https://yxohiprngidbubkpeola.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4b2hpcHJuZ2lkYnVia3Blb2xhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyNzU4NzgsImV4cCI6MjA2Mzg1MTg3OH0.FJk6YsLMdMPbogch9pn3xpj92MnHtNVRkvaHM94UkMs';
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Create ICT Administrator in database
-export async function createICTAdmin() {
-  try {
-    // First create auth user in Supabase
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: 'jamesbajee3579@gmail.com',
-      password: 'J@m3$b@j33',
-      options: {
-        data: {
-          name: 'James Bajee'
-        }
-      }
-    });
-
-    if (authError) {
-      console.log('Auth creation note:', authError.message);
-    }
-
-    // Create user record in our users table
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .insert({
-        firebase_uid: authData?.user?.id || 'ict-admin-james-bajee',
-        email: 'jamesbajee3579@gmail.com',
-        name: 'James Bajee',
-        role: 'admin',
-        department: 'ICT',
-        position: 'department_head',
-        level: 0,
-        can_assign_letters: true,
-        is_active: true
-      })
-      .select()
-      .single();
-
-    if (userError) {
-      console.log('User creation note:', userError.message);
-    }
-
-    return userData;
-  } catch (error) {
-    console.log('ICT admin setup note:', error);
-    return null;
-  }
-}
 
 // File upload function for documents
 export async function uploadDocument(

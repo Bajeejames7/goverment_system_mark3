@@ -1,14 +1,20 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { useAuth } from "@/contexts/SimpleAuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import ChatBot from "@/components/ChatBot";
 
 export default function LoginSelection() {
   const { isDark, toggleTheme } = useTheme();
-  const { user, isAuthenticated } = useAuth();
+  const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Remove loading check since SimpleAuthContext doesn't have loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   if (user) {
     setLocation("/dashboard");

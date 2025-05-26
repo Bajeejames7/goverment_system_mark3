@@ -3,8 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useLocation } from "wouter";
-import { signInWithEmail } from "@/lib/supabase";
-import { useAuth } from "@/contexts/SimpleAuthContext";
+import { loginWithEmail } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const { type } = useParams() as { type: string };
-  const { supabaseUser, loading } = useAuth();
+  const { firebaseUser, loading } = useAuth();
   const { toast } = useToast();
   const { isDark, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
@@ -40,10 +40,10 @@ export default function Login() {
 
   // Use useEffect to handle navigation to prevent state update during render
   useEffect(() => {
-    if (supabaseUser) {
+    if (firebaseUser) {
       setLocation("/dashboard");
     }
-  }, [supabaseUser, setLocation]);
+  }, [firebaseUser, setLocation]);
 
   if (loading) {
     return (
@@ -53,7 +53,7 @@ export default function Login() {
     );
   }
 
-  if (supabaseUser) {
+  if (firebaseUser) {
     return null;
   }
 
@@ -71,30 +71,11 @@ export default function Login() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // Direct Supabase authentication for ICT Admin
-      const { signInWithEmail } = await import('@/lib/supabase');
-      
-      const result = await signInWithEmail(data.email, data.password);
-      
-      if (result.user) {
-        // Store the token for API calls
-        localStorage.setItem('authToken', result.session?.access_token || 'ict-admin-token');
-        
-        toast({
-          title: "Success",
-          description: `Welcome! ICT Administrator access granted.`,
-        });
-        
-        // Redirect to dashboard
-        setLocation("/dashboard");
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Error",
-          description: error.message || "Invalid credentials",
-          variant: "destructive",
-        });
-      }
+      await loginWithEmail(data.email, data.password);
+      toast({
+        title: "Success",
+        description: "Login successful! Welcome to RMU System.",
+      });
     } catch (error) {
       toast({
         title: "Error",

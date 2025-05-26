@@ -1,4 +1,5 @@
-import { useAuth } from "@/contexts/SimpleAuthContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { logout } from "@/lib/auth";
 import { useLocation } from "wouter";
 
 interface SidebarProps {
@@ -7,13 +8,13 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { user, logout } = useAuth();
+  const { user, userRole, isAdmin } = useAuth();
   const [location, navigate] = useLocation();
 
   const handleLogout = async () => {
     try {
-      logout();
-      navigate("/simple-login");
+      await logout();
+      navigate("/login-selection");
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -84,15 +85,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="flex items-center">
               <div className="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center">
                 <span className="text-white font-medium text-sm">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase()}
+                  {user?.displayName ? getInitials(user.displayName) : user?.email?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="ml-3 min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {user?.name || user?.email}
+                  {user?.displayName || user?.email}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                  {user?.role}
+                  {userRole}
                 </p>
               </div>
             </div>

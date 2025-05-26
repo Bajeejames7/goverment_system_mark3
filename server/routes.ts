@@ -1,50 +1,32 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./simple-storage";
-// Using Supabase instead of Firebase
+import { storage } from "./storage";
+import { auth } from "./firebase-admin";
 import { insertUserSchema, insertFolderSchema, insertLetterSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
 
-// Admin login credentials for Industry RMU system
-const adminCredentials = {
-  email: 'jamesbajee3579@gmail.com',
-  password: 'J@m3$b@j33', // ICT Department Head
-};
-
-// Authentication for Industry department RMU system
+// Middleware to verify Firebase token
 const authenticateUser = async (req: any, res: any, next: any) => {
   try {
-    // Create ICT admin user profile for James Bajee
-    req.user = { 
-      uid: 'ict-admin-james-bajee',
-      email: 'jamesbajee3579@gmail.com',
-      name: 'James Bajee'
-    };
-    req.userProfile = {
-      id: 1,
-      firebaseUid: 'ict-admin-james-bajee',
-      email: 'jamesbajee3579@gmail.com',
-      name: 'James Bajee',
-      role: 'admin',
-      department: 'ICT',
-      position: 'department_head',
-      level: 0,
-      canAssignLetters: true,
-      isActive: true,
-      createdAt: new Date(),
-      createdBy: null,
-    };
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const decodedToken = await auth.verifyIdToken(token);
+    req.user = decodedToken;
+    
+    // Get user from storage
+    const user = await storage.getUserByFirebaseUid(decodedToken.uid);
+    req.userProfile = user;
     
     next();
   } catch (error) {
-    console.error("Auth error:", error);
-    res.status(401).json({ message: "Authentication failed" });
+    res.status(401).json({ message: "Invalid token" });
   }
 };
-
-const requireAuth = authenticateUser;
 
 // Middleware to check admin role
 const requireAdmin = (req: any, res: any, next: any) => {
@@ -66,73 +48,6 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  console.log("=== REGISTERING API ROUTES ===");
-  
-  // Test endpoint to verify API routing works
-  app.get("/api/test", (req, res) => {
-    console.log("TEST endpoint hit!");
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ message: "API routes working!" }));
-  });
-  
-  // ICT Admin login endpoint - bypass Vite interference
-  app.post("/api/auth/login", (req, res, next) => {
-    // Immediately stop any further middleware processing
-    res.headersSent = false;
-    
-    try {
-      console.log("=== API LOGIN CALLED ===", req.body);
-      const { email, password } = req.body;
-      
-      // Direct check for ICT admin credentials
-      if (email === 'jamesbajee3579@gmail.com' && password === 'J@m3$b@j33') {
-        console.log("ICT admin login successful");
-        
-        const response = {
-          success: true,
-          user: {
-            id: 1,
-            email: 'jamesbajee3579@gmail.com',
-            name: 'James Bajee',
-            role: 'admin',
-            department: 'ICT',
-            position: 'department_head',
-            canAddUsers: true
-          },
-          token: 'ict-admin-token-james-bajee-2025'
-        };
-        
-        // Force immediate response without any middleware interference
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Content-Length': Buffer.byteLength(JSON.stringify(response))
-        });
-        res.end(JSON.stringify(response));
-        return;
-      }
-      
-      console.log("Invalid credentials provided");
-      const errorResponse = { message: "Invalid credentials" };
-      res.writeHead(401, {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(JSON.stringify(errorResponse))
-      });
-      res.end(JSON.stringify(errorResponse));
-      return;
-      
-    } catch (error) {
-      console.error("Login error:", error);
-      const errorResponse = { message: "Login failed" };
-      res.writeHead(500, {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(JSON.stringify(errorResponse))
-      });
-      res.end(JSON.stringify(errorResponse));
-      return;
-    }
-  });
-
   // Auth routes
   app.post("/api/auth/register", requireAdmin, async (req, res) => {
     try {
