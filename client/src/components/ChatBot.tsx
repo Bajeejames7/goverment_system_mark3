@@ -140,6 +140,24 @@ export default function ChatBot() {
     }
   }, [isDragging, dragStart]);
 
+  // Handle window resize to keep button visible
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition(prevPosition => {
+        const maxX = window.innerWidth - 80;
+        const maxY = window.innerHeight - 80;
+        
+        return {
+          x: Math.max(20, Math.min(prevPosition.x, maxX)),
+          y: Math.max(20, Math.min(prevPosition.y, maxY))
+        };
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   if (!isOpen) {
     return (
       <div 
