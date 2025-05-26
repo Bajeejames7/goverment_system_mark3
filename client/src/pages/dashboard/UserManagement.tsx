@@ -8,11 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import CreateUserModal from "@/components/modals/CreateUserModal";
 import { User } from "@shared/schema";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/SimpleAuthContext";
 
 export default function UserManagement() {
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
