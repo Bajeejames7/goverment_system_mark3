@@ -1,4 +1,5 @@
-import { users, folders, letters, auditLogs, type User, type InsertUser, type Folder, type InsertFolder, type Letter, type InsertLetter, type AuditLog, type InsertAuditLog } from "@shared/schema";
+import { User, InsertUser, Folder, InsertFolder, Letter, InsertLetter, AuditLog, InsertAuditLog } from "@shared/schema";
+import { firestore } from './firebase-admin';
 
 export interface IStorage {
   // Users
@@ -39,221 +40,351 @@ export interface IStorage {
   }>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User> = new Map();
-  private folders: Map<number, Folder> = new Map();
-  private letters: Map<number, Letter> = new Map();
-  private auditLogs: Map<number, AuditLog> = new Map();
-  private currentUserId = 1;
-  private currentFolderId = 1;
-  private currentLetterId = 1;
-  private currentAuditLogId = 1;
-
-  constructor() {
-    // Initialize with some demo data
-    this.initializeDemoData();
-  }
-
-  private initializeDemoData() {
-    // Demo admin user
-    const adminUser: User = {
-      id: this.currentUserId++,
-      firebaseUid: "demo-admin-uid",
-      email: "admin@industry.gov",
-      name: "System Administrator",
-      role: "admin",
-      department: "Administration",
-      position: "System Administrator",
-      isActive: true,
-      createdAt: new Date(),
-      createdBy: null,
-    };
-    this.users.set(adminUser.id, adminUser);
-
-    // Demo folders
-    const demoFolders = [
-      {
-        id: this.currentFolderId++,
-        name: "Industry Department",
-        description: "Official documents and correspondence for the Industry Department",
-        department: "Industry Department",
-        createdBy: adminUser.firebaseUid,
-        createdAt: new Date(),
-        isActive: true,
-      },
-      {
-        id: this.currentFolderId++,
-        name: "Policy & Regulations",
-        description: "Government policies and regulatory documents",
-        department: "Policy & Regulations",
-        createdBy: adminUser.firebaseUid,
-        createdAt: new Date(),
-        isActive: true,
-      },
-    ];
-
-    demoFolders.forEach(folder => this.folders.set(folder.id, folder));
-  }
-
-  // User methods
+export class FirebaseStorage implements IStorage {
+  
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    try {
+      const usersRef = firestore.collection('users');
+      const snapshot = await usersRef.where('id', '==', id).get();
+      if (snapshot.empty) return undefined;
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as User;
+    } catch (error) {
+      console.error('Error getting user:', error);
+      return undefined;
+    }
   }
 
   async getUserByFirebaseUid(firebaseUid: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.firebaseUid === firebaseUid);
+    try {
+      const usersRef = firestore.collection('users');
+      const snapshot = await usersRef.where('firebaseUid', '==', firebaseUid).get();
+      if (snapshot.empty) return undefined;
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as User;
+    } catch (error) {
+      console.error('Error getting user by Firebase UID:', error);
+      return undefined;
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
+    try {
+      const usersRef = firestore.collection('users');
+      const snapshot = await usersRef.where('email', '==', email).get();
+      if (snapshot.empty) return undefined;
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as User;
+    } catch (error) {
+      console.error('Error getting user by email:', error);
+      return undefined;
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const user: User = {
-      ...insertUser,
-      id: this.currentUserId++,
-      createdAt: new Date(),
-    };
-    this.users.set(user.id, user);
-    return user;
+    try {
+      const userWithDefaults = {
+        ...insertUser,
+        id: Date.now(),
+        createdAt: new Date(),
+        isActive: insertUser.isActive ?? true,
+        position: insertUser.position || null,
+        createdBy: insertUser.createdBy || null,
+      };
+
+      const docRef = await firestore.collection('users').add(userWithDefaults);
+      const doc = await docRef.get();
+      return { id: doc.id, ...doc.data() } as User;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
   }
 
   async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { ...user, ...updates };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    try {
+      const usersRef = firestore.collection('users');
+      const snapshot = await usersRef.where('id', '==', id).get();
+      if (snapshot.empty) return undefined;
+      
+      const docRef = snapshot.docs[0].ref;
+      await docRef.update(updates);
+      
+      const updatedDoc = await docRef.get();
+      return { id: updatedDoc.id, ...updatedDoc.data() } as User;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return undefined;
+    }
   }
 
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values()).filter(user => user.isActive);
+    try {
+      const snapshot = await firestore.collection('users').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    } catch (error) {
+      console.error('Error getting all users:', error);
+      return [];
+    }
   }
 
-  // Folder methods
   async getFolder(id: number): Promise<Folder | undefined> {
-    return this.folders.get(id);
+    try {
+      const foldersRef = firestore.collection('folders');
+      const snapshot = await foldersRef.where('id', '==', id).get();
+      if (snapshot.empty) return undefined;
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as Folder;
+    } catch (error) {
+      console.error('Error getting folder:', error);
+      return undefined;
+    }
   }
 
   async getFoldersByDepartment(department: string): Promise<Folder[]> {
-    return Array.from(this.folders.values()).filter(
-      folder => folder.department === department && folder.isActive
-    );
+    try {
+      const snapshot = await firestore.collection('folders')
+        .where('department', '==', department)
+        .get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Folder));
+    } catch (error) {
+      console.error('Error getting folders by department:', error);
+      return [];
+    }
   }
 
   async getAllFolders(): Promise<Folder[]> {
-    return Array.from(this.folders.values()).filter(folder => folder.isActive);
+    try {
+      const snapshot = await firestore.collection('folders').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Folder));
+    } catch (error) {
+      console.error('Error getting all folders:', error);
+      return [];
+    }
   }
 
   async createFolder(insertFolder: InsertFolder): Promise<Folder> {
-    const folder: Folder = {
-      ...insertFolder,
-      id: this.currentFolderId++,
-      createdAt: new Date(),
-    };
-    this.folders.set(folder.id, folder);
-    return folder;
+    try {
+      const folderWithDefaults = {
+        ...insertFolder,
+        id: Date.now(),
+        createdAt: new Date(),
+        isActive: insertFolder.isActive ?? true,
+        description: insertFolder.description || null,
+      };
+
+      const docRef = await firestore.collection('folders').add(folderWithDefaults);
+      const doc = await docRef.get();
+      return { id: doc.id, ...doc.data() } as Folder;
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      throw error;
+    }
   }
 
   async updateFolder(id: number, updates: Partial<Folder>): Promise<Folder | undefined> {
-    const folder = this.folders.get(id);
-    if (!folder) return undefined;
-    
-    const updatedFolder = { ...folder, ...updates };
-    this.folders.set(id, updatedFolder);
-    return updatedFolder;
+    try {
+      const foldersRef = firestore.collection('folders');
+      const snapshot = await foldersRef.where('id', '==', id).get();
+      if (snapshot.empty) return undefined;
+      
+      const docRef = snapshot.docs[0].ref;
+      await docRef.update(updates);
+      
+      const updatedDoc = await docRef.get();
+      return { id: updatedDoc.id, ...updatedDoc.data() } as Folder;
+    } catch (error) {
+      console.error('Error updating folder:', error);
+      return undefined;
+    }
   }
 
-  // Letter methods
   async getLetter(id: number): Promise<Letter | undefined> {
-    return this.letters.get(id);
+    try {
+      const lettersRef = firestore.collection('letters');
+      const snapshot = await lettersRef.where('id', '==', id).get();
+      if (snapshot.empty) return undefined;
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as Letter;
+    } catch (error) {
+      console.error('Error getting letter:', error);
+      return undefined;
+    }
   }
 
   async getLetterByReference(reference: string): Promise<Letter | undefined> {
-    return Array.from(this.letters.values()).find(letter => letter.reference === reference);
+    try {
+      const lettersRef = firestore.collection('letters');
+      const snapshot = await lettersRef.where('reference', '==', reference).get();
+      if (snapshot.empty) return undefined;
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as Letter;
+    } catch (error) {
+      console.error('Error getting letter by reference:', error);
+      return undefined;
+    }
   }
 
   async getLettersByFolder(folderId: number): Promise<Letter[]> {
-    return Array.from(this.letters.values()).filter(letter => letter.folderId === folderId);
+    try {
+      const snapshot = await firestore.collection('letters')
+        .where('folderId', '==', folderId)
+        .get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Letter));
+    } catch (error) {
+      console.error('Error getting letters by folder:', error);
+      return [];
+    }
   }
 
   async getLettersByStatus(status: string): Promise<Letter[]> {
-    return Array.from(this.letters.values()).filter(letter => letter.status === status);
+    try {
+      const snapshot = await firestore.collection('letters')
+        .where('status', '==', status)
+        .get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Letter));
+    } catch (error) {
+      console.error('Error getting letters by status:', error);
+      return [];
+    }
   }
 
   async getAllLetters(): Promise<Letter[]> {
-    return Array.from(this.letters.values());
+    try {
+      const snapshot = await firestore.collection('letters').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Letter));
+    } catch (error) {
+      console.error('Error getting all letters:', error);
+      return [];
+    }
   }
 
   async getRecentLetters(limit: number): Promise<Letter[]> {
-    return Array.from(this.letters.values())
-      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
-      .slice(0, limit);
+    try {
+      const snapshot = await firestore.collection('letters')
+        .orderBy('uploadedAt', 'desc')
+        .limit(limit)
+        .get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Letter));
+    } catch (error) {
+      console.error('Error getting recent letters:', error);
+      return [];
+    }
   }
 
   async createLetter(insertLetter: InsertLetter): Promise<Letter> {
-    const letter: Letter = {
-      ...insertLetter,
-      id: this.currentLetterId++,
-      uploadedAt: new Date(),
-      verificationCode: this.generateVerificationCode(),
-      verifiedBy: null,
-      verifiedAt: null,
-      metadata: null,
-    };
-    this.letters.set(letter.id, letter);
-    return letter;
+    try {
+      const letterWithDefaults = {
+        ...insertLetter,
+        id: Date.now(),
+        uploadedAt: new Date(),
+        verificationCode: this.generateVerificationCode(),
+        verifiedBy: null,
+        verifiedAt: null,
+        metadata: null,
+        status: insertLetter.status || 'pending',
+        content: insertLetter.content || null,
+        folderId: insertLetter.folderId || null,
+        fileName: insertLetter.fileName || null,
+        fileUrl: insertLetter.fileUrl || null,
+      };
+
+      const docRef = await firestore.collection('letters').add(letterWithDefaults);
+      const doc = await docRef.get();
+      return { id: doc.id, ...doc.data() } as Letter;
+    } catch (error) {
+      console.error('Error creating letter:', error);
+      throw error;
+    }
   }
 
   async updateLetter(id: number, updates: Partial<Letter>): Promise<Letter | undefined> {
-    const letter = this.letters.get(id);
-    if (!letter) return undefined;
-    
-    const updatedLetter = { ...letter, ...updates };
-    if (updates.status === 'verified' && !letter.verifiedAt) {
-      updatedLetter.verifiedAt = new Date();
+    try {
+      const lettersRef = firestore.collection('letters');
+      const snapshot = await lettersRef.where('id', '==', id).get();
+      if (snapshot.empty) return undefined;
+      
+      const docRef = snapshot.docs[0].ref;
+      await docRef.update(updates);
+      
+      const updatedDoc = await docRef.get();
+      return { id: updatedDoc.id, ...updatedDoc.data() } as Letter;
+    } catch (error) {
+      console.error('Error updating letter:', error);
+      return undefined;
     }
-    
-    this.letters.set(id, updatedLetter);
-    return updatedLetter;
   }
 
-  // Audit log methods
   async createAuditLog(insertLog: InsertAuditLog): Promise<AuditLog> {
-    const log: AuditLog = {
-      ...insertLog,
-      id: this.currentAuditLogId++,
-      timestamp: new Date(),
-    };
-    this.auditLogs.set(log.id, log);
-    return log;
+    try {
+      const logWithDefaults = {
+        ...insertLog,
+        id: Date.now(),
+        timestamp: new Date(),
+        details: insertLog.details || null,
+      };
+
+      const docRef = await firestore.collection('auditLogs').add(logWithDefaults);
+      const doc = await docRef.get();
+      return { id: doc.id, ...doc.data() } as AuditLog;
+    } catch (error) {
+      console.error('Error creating audit log:', error);
+      throw error;
+    }
   }
 
   async getRecentAuditLogs(limit: number): Promise<AuditLog[]> {
-    return Array.from(this.auditLogs.values())
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, limit);
+    try {
+      const snapshot = await firestore.collection('auditLogs')
+        .orderBy('timestamp', 'desc')
+        .limit(limit)
+        .get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
+    } catch (error) {
+      console.error('Error getting recent audit logs:', error);
+      return [];
+    }
   }
 
-  // Stats methods
   async getStats(): Promise<{
     totalFolders: number;
     activeLetters: number;
     pendingVerification: number;
     activeUsers: number;
   }> {
-    return {
-      totalFolders: Array.from(this.folders.values()).filter(f => f.isActive).length,
-      activeLetters: this.letters.size,
-      pendingVerification: Array.from(this.letters.values()).filter(l => l.status === 'pending').length,
-      activeUsers: Array.from(this.users.values()).filter(u => u.isActive).length,
-    };
+    try {
+      const [foldersSnapshot, lettersSnapshot, pendingSnapshot, usersSnapshot] = await Promise.all([
+        firestore.collection('folders').get(),
+        firestore.collection('letters').where('status', '==', 'active').get(),
+        firestore.collection('letters').where('status', '==', 'pending').get(),
+        firestore.collection('users').where('isActive', '==', true).get(),
+      ]);
+
+      return {
+        totalFolders: foldersSnapshot.size,
+        activeLetters: lettersSnapshot.size,
+        pendingVerification: pendingSnapshot.size,
+        activeUsers: usersSnapshot.size,
+      };
+    } catch (error) {
+      console.error('Error getting stats:', error);
+      return {
+        totalFolders: 0,
+        activeLetters: 0,
+        pendingVerification: 0,
+        activeUsers: 0,
+      };
+    }
   }
 
   private generateVerificationCode(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new FirebaseStorage();

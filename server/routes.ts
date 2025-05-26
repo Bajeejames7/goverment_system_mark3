@@ -5,6 +5,7 @@ import { auth } from "./firebase-admin";
 import { insertUserSchema, insertFolderSchema, insertLetterSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
+import { storage as firebaseStorage } from "./firebase-admin";
 
 // Middleware to verify Firebase token
 const authenticateUser = async (req: any, res: any, next: any) => {
@@ -206,6 +207,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Configure multer for file uploads
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB limit for documents
+    },
+    fileFilter: (req, file, cb) => {
+      // Accept PDF and Word documents
+      const allowedTypes = /pdf|doc|docx/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const allowedMimeTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+      const mimetype = allowedMimeTypes.includes(file.mimetype);
+      
+      if (mimetype && extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error('Only PDF and Word documents are allowed'));
+      }
+    }
+  });
+
   app.post("/api/letters/upload", authenticateUser, upload.single('file'), async (req, res) => {
     try {
       const letterData = insertLetterSchema.parse({
@@ -213,11 +239,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         folderId: parseInt(req.body.folderId),
       });
 
+      let fileUrl = null;
+      let fileName = null;
+
+      // Upload file to Firebase Storage if provided
+      if (req.file && firebaseStorage) {
+        try {
+          const timestamp = Date.now();
+          const fileExtension = path.extname(req.file.originalname);
+          const storageFileName = `letters/${timestamp}_${req.file.originalname}`;
+          
+          const fileRef = firebaseStorage.bucket().file(storageFileName);
+          
+          await fileRef.save(req.file.buffer, {
+            metadata: {
+              contentType: req.file.mimetype,
+            },
+          });
+
+          // Make the file public and get download URL
+          await fileRef.makePublic();
+          fileUrl = `https://storage.googleapis.com/${firebaseStorage.bucket().name}/${storageFileName}`;
+          fileName = req.file.originalname;
+        } catch (uploadError) {
+          console.error('Firebase Storage upload error:', uploadError);
+          return res.status(500).json({ message: "Failed to upload file to storage" });
+        }
+      }
+
       const letter = await storage.createLetter({
         ...letterData,
         uploadedBy: req.user.uid,
-        fileName: req.file?.originalname || null,
-        fileUrl: req.file?.path || null,
+        fileName,
+        fileUrl,
       });
 
       await storage.createAuditLog({
