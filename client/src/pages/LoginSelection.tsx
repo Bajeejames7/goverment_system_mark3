@@ -1,6 +1,7 @@
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
+import ChatBot from "@/components/ChatBot";
 
 export default function LoginSelection() {
   const { isDark, toggleTheme } = useTheme();
@@ -80,6 +81,8 @@ export default function LoginSelection() {
           </a>
         </div>
       </div>
+      
+      <ChatBot />
     </div>
   );
 }
