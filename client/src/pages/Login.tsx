@@ -76,13 +76,13 @@ export default function Login() {
       
       const result = await signInWithEmail(data.email, data.password);
       
-      if (result.success && result.user) {
+      if (result.user) {
         // Store the token for API calls
         localStorage.setItem('authToken', result.session?.access_token || 'ict-admin-token');
         
         toast({
           title: "Success",
-          description: `Welcome ${result.user.name}! ICT Administrator access granted.`,
+          description: `Welcome! ICT Administrator access granted.`,
         });
         
         // Redirect to dashboard

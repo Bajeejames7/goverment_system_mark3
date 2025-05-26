@@ -75,8 +75,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const fetchUserData = async (authUser: SupabaseUser) => {
     try {
-      // For now, create basic user data from Supabase auth
-      // Later we'll integrate with your database
+      // Prevent infinite loops by checking if user data already exists
+      if (user && user.email === authUser.email) {
+        return;
+      }
+      
+      // For ICT admin, create user data from Supabase auth
       const userData = {
         id: 1,
         firebaseUid: authUser.id,
