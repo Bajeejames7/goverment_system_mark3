@@ -44,11 +44,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
       setSupabaseUser(session?.user ?? null);
       if (session?.user) {
-        // Store token for API calls
         localStorage.setItem('authToken', session.access_token);
         fetchUserData(session.user);
       }
@@ -57,6 +60,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      
       setSupabaseUser(session?.user ?? null);
       
       if (session?.user) {
@@ -70,16 +75,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserData = async (authUser: SupabaseUser) => {
     try {
-      // Prevent infinite loops by checking if user data already exists
-      if (user && user.email === authUser.email) {
-        return;
-      }
-      
       // For ICT admin, create user data from Supabase auth
       const userData = {
         id: 1,

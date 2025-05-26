@@ -8,12 +8,14 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import LoginSelection from "@/pages/LoginSelection";
 import Login from "@/pages/Login";
+import SimpleLogin from "@/pages/SimpleLogin";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
+      <Route path="/simple-login" component={SimpleLogin} />
       <Route path="/login-selection" component={LoginSelection} />
       <Route path="/login/:type" component={Login} />
       <Route path="/dashboard/:rest*">
