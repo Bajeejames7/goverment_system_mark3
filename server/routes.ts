@@ -66,15 +66,16 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Login endpoint for ICT Admin
+  // Login endpoint for ICT Admin - must be before other routes
   app.post("/api/auth/login", async (req, res) => {
     try {
+      console.log("Login attempt:", req.body);
       const { email, password } = req.body;
       
       // Check if it's the ICT admin login
       if (email === adminCredentials.email && password === adminCredentials.password) {
         // Return success with user data
-        res.json({
+        const response = {
           success: true,
           user: {
             id: 1,
@@ -86,12 +87,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             canAddUsers: true
           },
           token: 'ict-admin-token-james-bajee'
-        });
+        };
+        
+        res.setHeader('Content-Type', 'application/json');
+        res.status(200).json(response);
+        return;
       } else {
+        res.setHeader('Content-Type', 'application/json');
         res.status(401).json({ message: "Invalid credentials" });
+        return;
       }
     } catch (error) {
+      console.error("Login error:", error);
+      res.setHeader('Content-Type', 'application/json');
       res.status(500).json({ message: "Login failed" });
+      return;
     }
   });
 
