@@ -13,7 +13,7 @@ export default function ChatBot() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "🇰🇪 Hello! I'm your RMU Government System assistant. I can help you with document management, user registration, routing rules, and system navigation. How can I assist you today?",
+      text: "🇰🇪 Hello! I'm MIRA, your RMU Government System assistant. I can help you with document management, user registration, routing rules, and system navigation. How can I assist you today?",
       sender: "bot",
       timestamp: new Date(),
     },
@@ -41,7 +41,7 @@ export default function ChatBot() {
     const message = userMessage.toLowerCase();
     
     if (message.includes("hello") || message.includes("hi") || message.includes("hey")) {
-      return "Hello! 👋 Welcome to the RMU Government System. I'm here to help you navigate and use all the features effectively. What can I assist you with today?";
+      return "Hello! 👋 I'm MIRA, your RMU Government System assistant. Welcome to the system! I'm here to help you navigate and use all the features effectively. What can I assist you with today?";
     }
     
     if (message.includes("help") || message.includes("how") || message.includes("guide")) {
@@ -63,8 +63,12 @@ export default function ChatBot() {
     if (message.includes("logo") || message.includes("kenya")) {
       return "🇰🇪 The system displays the official Republic of Kenya logo and serves the Department of Industry with government-grade security and compliance standards.";
     }
+
+    if (message.includes("mira") || message.includes("name") || message.includes("who are you")) {
+      return "I'm MIRA! 🤖 I'm your dedicated assistant for the RMU Government System. I'm here to help you with all aspects of document management, user administration, and system navigation. How can I assist you today?";
+    }
     
-    return "I'm here to help with the RMU Government System! You can ask me about:\n• Document upload and management\n• User registration and roles\n• Automated routing setup\n• System navigation\n\nWhat specific topic interests you?";
+    return "I'm MIRA, here to help with the RMU Government System! You can ask me about:\n• Document upload and management\n• User registration and roles\n• Automated routing setup\n• System navigation\n\nWhat specific topic interests you?";
   };
 
   const handleSendMessage = () => {
@@ -207,7 +211,7 @@ export default function ChatBot() {
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-950 rounded-t-lg">
           <div className="flex items-center space-x-2">
             <Bot className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">RMU Assistant</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">MIRA Assistant</h3>
           </div>
           <button
             onClick={() => setIsOpen(false)}
