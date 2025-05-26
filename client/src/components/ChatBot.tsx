@@ -167,9 +167,18 @@ export default function ChatBot() {
 
   return (
     <>
+      {/* Debug: Always visible test button */}
+      <div 
+        className="fixed bottom-4 right-4 z-[9999] bg-red-500 text-white p-4 rounded-lg cursor-pointer"
+        style={{ position: 'fixed', zIndex: 9999 }}
+        onClick={() => setIsOpen(true)}
+      >
+        CHAT BOT TEST
+      </div>
+      
       {/* Chat Toggle Button - Enhanced Visibility */}
       {!isOpen && (
-        <div className="fixed bottom-6 right-6 z-[9999]" style={{ position: 'fixed', zIndex: 9999 }}>
+        <div className="fixed bottom-24 right-6 z-[9999]" style={{ position: 'fixed', zIndex: 9999 }}>
           <Button
             onClick={() => setIsOpen(true)}
             className="h-20 w-20 rounded-full shadow-2xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 pulse-animation border-4 border-white dark:border-gray-800 group"
