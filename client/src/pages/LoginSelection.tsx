@@ -47,14 +47,6 @@ export default function LoginSelection() {
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">RMU Government System</h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Department of Industry</p>
-          
-          {/* Dark Mode Toggle */}
-          <button 
-            onClick={toggleTheme}
-            className="mt-4 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-          >
-            <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
-          </button>
         </div>
 
         {/* Login Options */}

@@ -3,6 +3,9 @@ import { auth } from "./firebase";
 
 export const loginWithEmail = async (email: string, password: string) => {
   const result = await signInWithEmailAndPassword(auth, email, password);
+  // Get the ID token for server authentication
+  const idToken = await result.user.getIdToken();
+  localStorage.setItem('authToken', idToken);
   return result.user;
 };
 
