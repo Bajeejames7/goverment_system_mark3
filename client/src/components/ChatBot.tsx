@@ -97,8 +97,8 @@ export default function ChatBot() {
   if (!isOpen) {
     return (
       <div 
-        className="fixed bottom-6 left-6 z-50"
-        style={{ position: 'fixed', bottom: '24px', left: '24px', zIndex: 50 }}
+        className="fixed bottom-6 right-6 z-50"
+        style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 50 }}
       >
         <button
           onClick={() => setIsOpen(true)}
@@ -113,8 +113,8 @@ export default function ChatBot() {
 
   return (
     <div 
-      className="fixed bottom-6 left-6 z-50"
-      style={{ position: 'fixed', bottom: '24px', left: '24px', zIndex: 50 }}
+      className="fixed bottom-6 right-6 z-50"
+      style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 50 }}
     >
       <div className="w-96 h-[500px] bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col">
         {/* Header */}
