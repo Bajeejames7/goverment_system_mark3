@@ -92,6 +92,20 @@ export const documentRouting = pgTable("document_routing", {
   routedBy: text("routed_by").notNull(),
 });
 
+// Archive table for completed letter copies
+export const letterArchives = pgTable("letter_archives", {
+  id: serial("id").primaryKey(),
+  letterId: integer("letter_id").references(() => letters.id).notNull(),
+  userId: text("user_id").notNull(), // Firebase UID of user who completed work
+  userRole: text("user_role").notNull(), // Role at time of archiving
+  userDepartment: text("user_department").notNull(),
+  actionTaken: text("action_taken"), // What action they took
+  notes: text("notes"), // User's final notes
+  archivedAt: timestamp("archived_at").defaultNow(),
+  originalStatus: text("original_status"), // Letter status when archived
+  finalStatus: text("final_status"), // Letter status after completion
+});
+
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

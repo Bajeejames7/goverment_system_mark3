@@ -18,11 +18,8 @@ export default function UserManagement() {
     queryKey: ['/api/users'],
   });
 
-  // Check if current user can add new users (only ICT admin and Registry management head)
-  const canAddUsers = user && (
-    (user.department === 'ICT' && user.role === 'admin') ||
-    (user.department === 'Registry' && user.position === 'management_head')
-  );
+  // Use canAddUsers from auth context
+  const { canAddUsers } = useAuth();
 
   // Check existing role constraints for single-position roles
   const getExistingRoleCounts = () => {
