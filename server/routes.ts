@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { auth } from "./firebase-admin";
+import { storage } from "./simple-storage";
+// Using Supabase instead of Firebase
 import { insertUserSchema, insertFolderSchema, insertLetterSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
