@@ -1,19 +1,38 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, UserPlus, Shield, Eye, Users } from "lucide-react";
+import { Plus, UserPlus, Shield, Eye, Users, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import CreateUserModal from "@/components/modals/CreateUserModal";
 import { User } from "@shared/schema";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function UserManagement() {
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
+  const { user, userRole } = useAuth();
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
+
+  // Check if current user can add new users (only ICT admin and Registry management head)
+  const canAddUsers = user && (
+    (user.department === 'ICT' && user.role === 'admin') ||
+    (user.department === 'Registry' && user.position === 'management_head')
+  );
+
+  // Check existing role constraints for single-position roles
+  const getExistingRoleCounts = () => {
+    const counts = {
+      secretary: users.filter(u => u.position === 'Secretary').length,
+      ps: users.filter(u => u.position === 'PS').length,
+      industrial_secretary: users.filter(u => u.position === 'Secretary' && u.department === 'Industrialization').length,
+    };
+    return counts;
+  };
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
@@ -95,21 +114,48 @@ export default function UserManagement() {
   const registryUsers = users.filter(user => user.role === 'registry');
   const officerUsers = users.filter(user => user.role === 'officer');
 
+  const roleCounts = getExistingRoleCounts();
+
   return (
     <div className="space-y-6">
+      {/* Access Control Warning */}
+      {!canAddUsers && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
+            <strong>Access Restricted:</strong> Only ICT Administrators and Registry Management Head can register new users.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Role Constraints Warning */}
+      {canAddUsers && (roleCounts.secretary > 0 || roleCounts.ps > 0) && (
+        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
+          <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            <strong>Role Limits:</strong> 
+            {roleCounts.secretary > 0 && " Secretary position filled."}
+            {roleCounts.ps > 0 && " Principal Secretary position filled."}
+            {" Only one person can hold these positions."}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Manage system users and their access levels</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Manage government hierarchy and user access levels</p>
         </div>
-        <Button 
-          onClick={() => setCreateUserModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Register New User
-        </Button>
+        {canAddUsers && (
+          <Button 
+            onClick={() => setCreateUserModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Register New User
+          </Button>
+        )}
       </div>
 
       {/* Statistics Cards */}
