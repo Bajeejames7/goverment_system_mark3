@@ -1,32 +1,39 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useLocation } from "wouter";
-import { useToast } from "@/hooks/use-toast";
-import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { Sun, Moon, Eye, EyeOff, AlertCircle } from "lucide-react";
+import logoPath from "@assets/Republic_of_kenya_logo.jpeg";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  rememberMe: z.boolean().default(false),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+  rememberMe: z.boolean().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function UniversalLogin() {
-  const { toast } = useToast();
-  const { isDark, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
-  const [isLoading, setIsLoading] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<LoginFormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
@@ -35,222 +42,211 @@ export default function UniversalLogin() {
     },
   });
 
-  // Check if user is already logged in
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      // Verify token and redirect to appropriate dashboard
-      verifyTokenAndRedirect(token);
-    }
-  }, []);
+  const onSubmit = async (data: LoginFormData) => {
+    setError("");
+    setIsLoading(true);
 
-  const verifyTokenAndRedirect = async (token: string) => {
     try {
-      const response = await fetch('/api/me', {
+      const response = await fetch('/api/login', {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        redirectBasedOnRole(userData.roles);
-      } else {
-        localStorage.removeItem('auth_token');
-      }
-    } catch (error) {
-      localStorage.removeItem('auth_token');
-    }
-  };
-
-  const redirectBasedOnRole = (roles: string[]) => {
-    // Determine dashboard based on user roles (highest priority first)
-    if (roles.includes('admin') || roles.includes('ict_admin')) {
-      setLocation("/dashboard/admin");
-    } else if (roles.includes('principal_secretary')) {
-      setLocation("/dashboard/ps");
-    } else if (roles.includes('secretary')) {
-      setLocation("/dashboard/secretary");
-    } else if (roles.includes('registry') || roles.includes('registry_admin')) {
-      setLocation("/dashboard/registry");
-    } else if (roles.includes('department_head')) {
-      setLocation("/dashboard/department");
-    } else {
-      setLocation("/dashboard/officer");
-    }
-  };
-
-  const onSubmit = async (data: LoginFormData) => {
-    setIsLoading(true);
-    try {
-      const response = await apiRequest('POST', '/api/login', {
-        email: data.email,
-        password: data.password,
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
       });
 
       const result = await response.json();
 
-      if (result.success && result.token && result.user) {
-        // Store JWT token
+      if (response.ok && result.success) {
         localStorage.setItem('auth_token', result.token);
-        
-        // Store user data
-        localStorage.setItem('user_data', JSON.stringify(result.user));
-
-        toast({
-          title: "Success",
-          description: `Welcome back, ${result.user.name}! Redirecting to your dashboard...`,
-        });
-
-        // Redirect based on user roles
-        setTimeout(() => {
-          redirectBasedOnRole(result.user.roles);
-        }, 1000);
+        setLocation('/dashboard');
       } else {
-        toast({
-          title: "Login Failed",
-          description: result.message || "Invalid email or password",
-          variant: "destructive",
-        });
+        setError(result.message || 'Invalid credentials. Please try again.');
       }
-    } catch (error) {
-      toast({
-        title: "Login Failed",
-        description: error instanceof Error ? error.message : "Invalid email or password",
-        variant: "destructive",
-      });
+    } catch (err) {
+      setError('Login failed. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-slate-900 transition-colors duration-200">
-      {/* Theme Toggle Button */}
-      <button
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300/20 dark:bg-blue-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+      
+      {/* Theme Toggle */}
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={toggleTheme}
-        className="fixed top-4 right-4 p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 z-50"
+        className="fixed top-6 right-6 z-20 p-3 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg hover:bg-white dark:hover:bg-slate-800 shadow-xl border border-white/20 dark:border-slate-700/20"
         aria-label="Toggle theme"
       >
         {isDark ? (
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-          </svg>
+          <Sun className="h-5 w-5 text-yellow-500" />
         ) : (
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-          </svg>
+          <Moon className="h-5 w-5 text-slate-600" />
         )}
-      </button>
-      
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          {/* Kenya Government Logo */}
-          <div className="mx-auto h-20 w-20 mb-6">
-            <img 
-              src="/src/../attached_assets/Republic_of_kenya_logo.jpeg" 
-              alt="Republic of Kenya"
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-            RMU System Login
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Records Management Unit - Government of Kenya
-          </p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
-            Enter your credentials to access the system
-          </p>
-        </div>
+      </Button>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                {...form.register("email")}
-                className="mt-1"
-                placeholder="your.email@government.go.ke"
-                disabled={isLoading}
-              />
-              {form.formState.errors.email && (
-                <p className="text-sm text-red-600 mt-1">{form.formState.errors.email.message}</p>
-              )}
+      <div className="w-full max-w-md relative z-10">
+        {/* Elevated Login Card with Professional Styling */}
+        <Card className="shadow-2xl shadow-blue-500/20 dark:shadow-blue-500/10 border-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl relative overflow-hidden">
+          {/* Subtle gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-transparent to-blue-100/30 dark:from-slate-800/30 dark:via-transparent dark:to-slate-700/20"></div>
+          
+          <CardHeader className="text-center pb-6 pt-8 relative z-10">
+            {/* Kenya Logo with Blue Circle */}
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full p-1 shadow-2xl shadow-blue-500/30 ring-4 ring-blue-100 dark:ring-blue-900/30">
+                  <div className="w-full h-full bg-white rounded-full p-2 flex items-center justify-center">
+                    <img 
+                      src={logoPath} 
+                      alt="Republic of Kenya" 
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+                {/* Pulse animation ring */}
+                <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"></div>
+              </div>
             </div>
             
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <div className="mt-1 relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  {...form.register("password")}
-                  className="pr-10"
-                  placeholder="Enter your password"
-                  disabled={isLoading}
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  disabled={isLoading}
-                >
-                  <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-gray-400 hover:text-gray-600 dark:hover:text-gray-300`}></i>
-                </button>
-              </div>
-              {form.formState.errors.password && (
-                <p className="text-sm text-red-600 mt-1">{form.formState.errors.password.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="remember-me"
-                checked={form.watch("rememberMe")}
-                onCheckedChange={(checked) => form.setValue("rememberMe", !!checked)}
-                disabled={isLoading}
-              />
-              <Label htmlFor="remember-me" className="text-sm">Remember me</Label>
-            </div>
-            <div className="text-sm">
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-700">
-                Forgot password?
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <Button 
-              type="submit" 
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
-                  Signing In...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-sign-in-alt mr-2"></i>
-                  Sign In
-                </>
-              )}
-            </Button>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Need an account? Contact your system administrator.
+            <CardTitle className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
+              Republic of Kenya
+            </CardTitle>
+            <CardTitle className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent mb-2">
+              RMU System Login
+            </CardTitle>
+            <CardDescription className="text-slate-600 dark:text-slate-400 font-medium">
+              Records Management Unit - Government of Kenya
+            </CardDescription>
+            <div className="w-16 h-0.5 bg-gradient-to-r from-blue-500 to-blue-600 mx-auto mt-3 mb-4 rounded-full"></div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Enter your credentials to access the system
             </p>
-          </div>
-        </form>
+          </CardHeader>
+
+          <CardContent className="space-y-6 px-8 pb-8 relative z-10">
+            {error && (
+              <Alert variant="destructive" className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 backdrop-blur-sm">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-red-700 dark:text-red-400">{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-slate-700 dark:text-slate-300 font-semibold text-sm">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your.email@government.go.ke"
+                  {...register("email")}
+                  className={`h-12 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg backdrop-blur-sm transition-all duration-200 ${
+                    errors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                  }`}
+                />
+                {errors.email && (
+                  <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.email.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-slate-700 dark:text-slate-300 font-semibold text-sm">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    {...register("password")}
+                    className={`h-12 bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg backdrop-blur-sm transition-all duration-200 pr-12 ${
+                      errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                    }`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-slate-400" />
+                    )}
+                  </Button>
+                </div>
+                {errors.password && (
+                  <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.password.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="rememberMe" 
+                    {...register("rememberMe")} 
+                    className="border-slate-300 dark:border-slate-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                  />
+                  <Label
+                    htmlFor="rememberMe"
+                    className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer font-medium"
+                  >
+                    Remember me
+                  </Label>
+                </div>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-0 font-medium"
+                >
+                  Forgot password?
+                </Button>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Signing In...
+                  </div>
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
+            </form>
+
+            <div className="text-center pt-4 border-t border-slate-200/50 dark:border-slate-700/50">
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                Need an account? <span className="text-blue-600 dark:text-blue-400 font-semibold">Contact your system administrator.</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
