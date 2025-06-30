@@ -1,11 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User as FirebaseUser } from "firebase/auth";
 import { User as DatabaseUser } from "@shared/schema";
-import { auth } from "@/lib/firebase";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AuthContextType {
-  firebaseUser: FirebaseUser | null;
   user: DatabaseUser | null;
   userRole: string | null;
   loading: boolean;
@@ -16,7 +13,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({
-  firebaseUser: null,
   user: null,
   userRole: null,
   loading: true,
@@ -39,71 +35,56 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<DatabaseUser | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
-      
-      if (firebaseUser) {
+    // Check for existing JWT token and fetch user data
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
         try {
-          // Get the ID token for authentication
-          const token = await firebaseUser.getIdToken();
-          
-          // Fetch user data from database
-          const response = await fetch('/api/user/me', {
+          const response = await apiRequest('/api/me', {
+            method: 'GET',
             headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
+              'Authorization': `Bearer ${token}`
+            }
           });
-
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setUserRole(userData.role);
-          } else {
-            setUser(null);
-            setUserRole(null);
+          
+          if (response.success && response.user) {
+            setUser(response.user);
+            setUserRole(response.user.position || 'user');
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
-          setUser(null);
-          setUserRole(null);
+          // Token is invalid, remove it
+          localStorage.removeItem('token');
         }
-      } else {
-        setUser(null);
-        setUserRole(null);
       }
-      
       setLoading(false);
-    });
+    };
 
-    return unsubscribe;
+    checkAuth();
   }, []);
 
-  // Check if user can add new users (only ICT admin and Registry management head)
-  const canAddUsers = user && (
-    (user.department === 'ICT' && user.role === 'admin') ||
-    (user.department === 'Registry' && user.position === 'management_head')
-  );
-
-  const value = {
-    firebaseUser,
-    user,
-    userRole,
-    loading,
-    isAdmin: userRole === 'admin',
-    isRegistry: userRole === 'registry',
-    isOfficer: userRole === 'officer',
-    canAddUsers: Boolean(canAddUsers),
-  };
+  // Derive role-based permissions
+  const isAdmin = userRole === 'admin' || userRole === 'ict_admin';
+  const isRegistry = userRole === 'registry' || userRole === 'registry_admin';
+  const isOfficer = userRole === 'officer' || userRole === 'secretary';
+  const canAddUsers = isAdmin || isRegistry;
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={{
+        user,
+        userRole,
+        loading,
+        isAdmin,
+        isRegistry,
+        isOfficer,
+        canAddUsers,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

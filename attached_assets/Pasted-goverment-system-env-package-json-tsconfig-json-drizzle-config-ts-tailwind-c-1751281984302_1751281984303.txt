@@ -1,0 +1,552 @@
+goverment_system/
+│
+├── .env
+├── package.json
+├── tsconfig.json
+├── drizzle.config.ts
+├── tailwind.config.ts
+├── postcss.config.js
+├── vite.config.ts
+│
+├── client/                        # Frontend (React + Vite)
+│   ├── index.html
+│   ├── public/
+│   │   └── Republic_of_kenya_logo.jpeg
+│   └── src/
+│       ├── App.tsx
+│       ├── main.tsx
+│       ├── index.css
+│       ├── components/
+│       │   ├── Header.tsx
+│       │   ├── Sidebar.tsx
+│       │   ├── ProtectedRoute.tsx
+│       │   ├── ChatBot.tsx
+│       │   ├── DocumentPreview.tsx
+│       │   ├── modals/
+│       │   │   ├── CreateUserModal.tsx
+│       │   │   ├── CreateFolderModal.tsx
+│       │   │   ├── UploadLetterModal.tsx
+│       │   │   └── CreateRoutingRuleModal.tsx
+│       │   └── ui/                # Radix UI and custom UI components
+│       ├── contexts/
+│       │   ├── AuthContext.tsx
+│       │   └── ThemeContext.tsx
+│       ├── hooks/
+│       │   ├── use-toast.ts
+│       │   └── use-mobile.ts
+│       ├── lib/
+│       │   ├── auth.ts
+│       │   ├── queryClient.ts
+│       │   └── utils.ts
+│       └── pages/
+│           ├── Login.tsx
+│           ├── LoginSelection.tsx
+│           ├── Dashboard.tsx
+│           ├── not-found.tsx
+│           ├── verify-email.tsx
+│           └── dashboard/
+│               ├── Routing.tsx
+│               └── (other dashboard subpages)
+│
+├── server/                        # Backend (Express)
+│   ├── index.ts                   # Main server entry, Express app setup
+│   ├── routes.ts                  # All API endpoints (REST)
+│   ├── middleware.ts              # Custom Express middleware (auth, error, etc.)
+│   ├── db.ts                      # Drizzle ORM setup and DB connection
+│   ├── storage.ts                 # Data access layer (CRUD for users, folders, letters, etc.)
+│   ├── vite.ts                    # Vite dev server integration for SSR (if needed)
+│   ├── files.ts                   # File upload/download logic (multer, streaming)
+│   ├── certs/                     # SSL/TLS certificates (if needed)
+│   │   └── ca.crt
+│   ├── api/                       # (Optional) Next.js-style API routes (if using hybrid)
+│   │   └── auth/
+│   │       ├── login/
+│   │       └── register/
+│   │   └── chat/
+│   │       └── route.ts
+│   └── lib/
+│       ├── auth.ts                # Auth logic (register, login, JWT, password hashing)
+│       ├── auth-middleware.ts     # Express JWT middleware
+│       ├── email.ts               # Nodemailer/email logic
+│       └── files.ts               # File helpers
+│
+├── shared/                        # Shared code (schemas, types)
+│   └── schema.ts                  # Zod/Drizzle schemas for users, folders, letters, etc.
+│
+├── db/
+│   └── migrations/                # SQL migration scripts
+│       └── add_file_signed_urls.sql
+│
+└── attached_assets/               # Docs, diagrams, assets
+    ├── flowchart for RMU system.docx
+    ├── Republic_of_kenya_logo.jpeg
+    ├── rmu_roles_and_access.sql
+    ├── sql_database_details.txt
+    └── System Admin Dashboard.pptx
+    
+    
+    
+    Prompt for Building a Full-Stack RMU Government System
+Build a full-stack RMU Government System with the following requirements:
+
+1. Tech Stack
+Frontend: React (with Vite), TypeScript, Tailwind CSS, React Hook Form, Zod, Wouter (routing), Radix UI, TanStack React Query.
+Backend: Node.js, Express, TypeScript, Drizzle ORM (with PostgreSQL), JWT for authentication, bcryptjs for password hashing, multer for file uploads.
+Shared: Use a shared TypeScript schema for validation between backend and frontend.
+Other: Nodemailer for email, dotenv for environment variables, and a robust audit log system.
+
+### 2. .env Secrets (Backend)
+secrets
+DATABASE_HOST=goverment-project-goverment-website.j.aivencloud.com
+DATABASE_PORT=13270
+DATABASE_USER=avnadmin
+DATABASE_PASSWORD=AVNS_nQOiWAOU_lP9__dBVYf
+DATABASE_NAME=defaultdb
+SMTP_USER=jamesbajee3579@gmail.com
+SMTP_PASS=ycryggjqdnhfertc
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+FROM_EMAIL=jamesbajee3579@gmail.com
+NEXT_PUBLIC_APP_URL=http://localhost:5000
+
+### 3. User Roles & Access
+- **Roles:** admin, officer, secretary, registry, ict_admin, registry_admin, letter_recipient, etc.
+- **Departments:** Admin, Registry, Mining, Chemicals, Geology, Petroleum, Energy, Water, Environment, Lands, HumanResources, Finance, ICT, Legal, Procurement, Planning.
+- **Role-based access:** Only admins can create users, officers/secretaries can upload and route letters, registry can manage folders, etc.
+
+### 4. Authentication & Authorization
+- **Registration:** Only admins can register new users. Email verification is required.
+- **Login:** JWT-based authentication. Store JWT in localStorage and send as Bearer token in Authorization header.
+- **Protected routes:** Use middleware on backend and ProtectedRoute on frontend.
+- **Password hashing:** Use bcryptjs.
+- **Email verification:** Send verification email with a token.
+
+### 5. Main Features
+#### User Management
+- Register, login, logout, verify email, reset password.
+- Admin can create, update, delete users and assign roles.
+- Users can view and update their profile.
+
+#### Folder & Document Management
+- Create, update, delete folders (by registry/admin).
+- Upload, download, and preview letters/documents (PDF, DOCX).
+- Route letters to users based on department/role.
+- Only allow certain file types and size limits.
+
+#### Letter Routing & Tracking
+- Route letters to users or departments.
+- Track status: pending, verified, rejected, etc.
+- Audit log for all actions (login, upload, route, verify, delete).
+
+#### Dashboard
+- Show stats: number of users, letters, folders, recent activity.
+- Role-based dashboard views.
+
+#### Chatbot (Optional)
+- Integrate a simple chatbot for user help.
+
+### 6. API Endpoints (Express)
+- `POST /api/login` — Login user, return JWT and user info.
+- `POST /api/register` — Register user (admin only).
+- `POST /api/verify-email` — Verify email with token.
+- `POST /api/forgot-password` — Send password reset email.
+- `POST /api/reset-password` — Reset password with token.
+- `GET /api/me` — Get current user info (protected).
+- `GET /api/users` — List users (admin only).
+- `GET /api/users/:id` — Get user by ID (protected).
+- `PATCH /api/users/:id` — Update user (admin or self).
+- `DELETE /api/users/:id` — Delete user (admin only).
+- `GET /api/folders` — List folders (protected).
+- `POST /api/folders` — Create folder (registry/admin).
+- `DELETE /api/folders/:id` — Delete folder (registry/admin).
+- `GET /api/letters` — List letters (protected).
+- `POST /api/letters/upload` — Upload letter (officer/secretary).
+- `PATCH /api/letters/:id/verify` — Verify/reject letter (admin/registry).
+- `GET /api/letters/sent` — Letters sent by user.
+- `GET /api/letters/received` — Letters received by user.
+- `GET /api/stats` — Dashboard stats (protected).
+- `GET /api/audit-logs/recent` — Recent audit logs (admin only).
+
+### 7. Frontend Pages
+- `/login-selection` — Choose login type.
+- `/login` — Login form.
+- `/dashboard` — Main dashboard (role-based).
+- `/verify-email` — Email verification.
+- `/not-found` — 404 page.
+- `/folders` — Folder management.
+- `/letters` — Letter management.
+- `/users` — User management (admin).
+- Modals for create user, create folder, upload letter, etc.
+
+### 8. UI/UX
+- Use Tailwind and Radix UI for a modern, accessible interface.
+- Responsive design for desktop and mobile.
+- Toast notifications for success/error.
+- Theme toggle (light/dark).
+
+### 9. Security
+- Validate all inputs on both frontend (Zod) and backend (Zod/Drizzle).
+- Use JWT securely (httpOnly cookies or localStorage).
+- Sanitize file uploads and limit file types/sizes.
+- Protect all sensitive routes with middleware.
+
+### 10. Audit Logging
+- Log all critical actions: login, logout, create/update/delete user, upload/delete letter, route letter, etc.
+- Store logs in the database with user info, action, timestamp, and details.
+
+---
+
+**Instructions:**  
+Use this prompt to scaffold your project, set up your .env, and implement all features and security best practices. Make sure to use the tools and libraries listed above for maximum compatibility with your current stack.
+
+relevant sql details
+-- Step 1: Define Roles
+
+-- Admin roles
+CREATE ROLE ict_admin;
+CREATE ROLE registry_admin;
+
+-- High-level user
+CREATE ROLE principal_secretary;
+
+-- Mid-level roles
+CREATE ROLE secretary;
+CREATE ROLE department_head;
+
+-- Specialized departments (optional, can inherit from department_head)
+CREATE ROLE fin;
+CREATE ROLE acc;
+CREATE ROLE hrm;
+CREATE ROLE ict;
+CREATE ROLE comm;
+CREATE ROLE legal;
+CREATE ROLE intern_audit;
+CREATE ROLE procurement;
+CREATE ROLE planning;
+
+-- Functional units
+CREATE ROLE ad;
+CREATE ROLE dfs;
+CREATE ROLE chem_min;
+CREATE ROLE mip;
+CREATE ROLE eng;
+CREATE ROLE kin;
+
+-- Base user
+CREATE ROLE letter_recipient;
+
+
+-- Step 2: Assign Role Hierarchy
+
+-- Admins inherit high-level access
+GRANT principal_secretary TO ict_admin;
+GRANT principal_secretary TO registry_admin;
+
+-- Secretaries can assign letters
+GRANT department_head TO secretary;
+
+-- Department-specific roles inherit from department_head
+GRANT department_head TO fin;
+GRANT department_head TO acc;
+GRANT department_head TO hrm;
+GRANT department_head TO ict;
+GRANT department_head TO comm;
+GRANT department_head TO legal;
+GRANT department_head TO intern_audit;
+GRANT department_head TO procurement;
+GRANT department_head TO planning;
+
+-- Functional units inherit as well
+GRANT department_head TO ad;
+GRANT department_head TO dfs;
+GRANT department_head TO chem_min;
+GRANT department_head TO mip;
+GRANT department_head TO eng;
+GRANT department_head TO kin;
+
+
+
+
+-- Step 4: Example Table Access Control (e.g., for 'letters' table)
+
+GRANT ALL ON letters TO ict_admin;
+GRANT ALL ON letters TO registry_admin;
+
+GRANT SELECT, UPDATE ON letters TO principal_secretary;
+GRANT SELECT, UPDATE ON letters TO secretary;
+GRANT SELECT, UPDATE ON letters TO department_head;
+GRANT SELECT ON letters TO letter_recipient;
+
+
+-- 9. Table for audit logs (system activity)
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    action TEXT NOT NULL,
+    details JSONB,
+    timestamp TIMESTAMP DEFAULT NOW()
+);
+
+
+-- 1. Table for roles (supports hierarchy)
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    parent_role_id INTEGER REFERENCES roles(id)
+);
+
+-- 2. Table for users
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    password TEXT NOT NULL,
+    department TEXT,
+    position TEXT,
+    level INTEGER DEFAULT 0,
+    can_assign_letters BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    email_verified BOOLEAN DEFAULT FALSE,
+    email_verification_token TEXT,
+    email_verification_expires TIMESTAMP,
+    reset_password_token TEXT,
+    reset_password_expires TIMESTAMP,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    created_by INTEGER REFERENCES users(id)
+);
+
+-- 3. Table for assigning multiple roles to users
+CREATE TABLE user_roles (
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, role_id)
+);
+
+-- 4. Table for folders
+CREATE TABLE folders (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    department TEXT NOT NULL,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- 5. Table for files
+CREATE TABLE files (
+    id SERIAL PRIMARY KEY,
+    filename TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    path TEXT NOT NULL,
+    uploaded_by INTEGER REFERENCES users(id),
+    uploaded_at TIMESTAMP DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE,
+    metadata JSONB,
+    folder_id INTEGER REFERENCES folders(id)
+);
+
+-- 6. (Optional) Example: Insert some roles
+INSERT INTO roles (name, description) VALUES
+  ('admin', 'System administrator'),
+  ('registry', 'Registry staff'),
+  ('principal_secretary', 'Principal Secretary'),
+  ('secretary', 'Secretary'),
+  ('department_head', 'Department Head'),
+  ('fin', 'Finance'),
+  ('acc', 'Accounts'),
+  ('hrm', 'Human Resources'),
+  ('ict', 'ICT'),
+  ('comm', 'Communications'),
+  ('legal', 'Legal'),
+  ('intern_audit', 'Internal Audit'),
+  ('procurement', 'Procurement'),
+  ('planning', 'Planning'),
+  ('ad', 'AD'),
+  ('dfs', 'DFS'),
+  ('chem_min', 'Chemistry/Mining'),
+  ('mip', 'MIP'),
+  ('eng', 'Engineering'),
+  ('kin', 'KIN'),
+  ('letter_recipient', 'Base user');
+
+-- 7. (Optional) Example: Insert a user and assign a role
+INSERT INTO users (email, name, password, department, position, level, is_active, created_at)
+VALUES ('admin@example.com', 'Admin User', 'hashedpassword', 'Admin', 'admin', 3, TRUE, NOW());
+
+INSERT INTO user_roles (user_id, role_id) VALUES (1, 1);
+
+-- 8. (Optional) Example: Create a folder and a file
+INSERT INTO folders (name, description, department, created_by)
+VALUES ('Finance Docs', 'All finance related documents', 'Fin', 1);
+
+INSERT INTO files (filename, original_name, mime_type, size, path, uploaded_by, folder_id)
+VALUES ('budget2024.pdf', 'Budget 2024.pdf', 'application/pdf', 123456, '/files/budget2024.pdf', 1, 1);
+
+CREATE TABLE file_signed_urls (
+    id SERIAL PRIMARY KEY,
+    file_id INTEGER REFERENCES files(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    created_by INTEGER REFERENCES users(id)
+);
+
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    action TEXT NOT NULL,
+    details JSONB,
+    timestamp TIMESTAMP DEFAULT NOW()
+);
+  
+  
+data in the tables: 
+TABLES:
+audit_logs
+document_routing
+file_signed_urls
+files
+folders
+letter_archives
+letters
+roles
+routing_rules
+user_roles
+users
+
+TABLES DATA:
+
+...audit_logs
+entity_id	integer	NO
+details	jsonb	YES
+timestamp	timestamp without time zone	YES
+id	integer	NO
+user_id	integer	YES
+action	text	NO
+entity_type	text	NO
+
+...document_routing
+id	integer	NO
+letter_id	integer	YES
+routing_rule_id	integer	YES
+routed_at	timestamp without time zone	YES
+delivered_at	timestamp without time zone	YES
+routed_by	integer	YES
+from_department	text	NO
+to_department	text	NO
+notes	text	YES
+status	text	NO
+
+...file_signed_urls
+id	integer	NO
+file_id	integer	YES
+expires_at	timestamp without time zone	NO
+created_at	timestamp without time zone	YES
+created_by	integer	YES
+token	text	NO
+
+...files
+id	integer	NO
+uploaded_by	integer	YES
+uploaded_at	timestamp without time zone	YES
+is_active	boolean	YES
+metadata	jsonb	YES
+size	integer	NO
+filename	text	NO
+original_name	text	NO
+mime_type	text	NO
+path	text	NO
+
+...folders
+created_by	integer	YES
+created_at	timestamp without time zone	YES
+is_active	boolean	YES
+id	integer	NO
+department	text	NO
+name	text	NO
+description	text	YES
+
+...letter_archives
+user_id	integer	YES
+archived_at	timestamp without time zone	YES
+letter_id	integer	NO
+id	integer	NO
+notes	text	YES
+original_status	text	YES
+final_status	text	YES
+user_role	text	NO
+user_department	text	NO
+action_taken	text	YES
+
+...letters
+metadata	jsonb	YES
+assigned_by	integer	YES
+verified_by	integer	YES
+uploaded_at	timestamp without time zone	YES
+opened_at	timestamp without time zone	YES
+assigned_at	timestamp without time zone	YES
+verified_at	timestamp without time zone	YES
+completed_at	timestamp without time zone	YES
+id	integer	NO
+folder_id	integer	YES
+file_id	integer	YES
+requires_passcode	boolean	YES
+uploaded_by	integer	YES
+assigned_to	integer	YES
+title	text	NO
+reference	text	NO
+passcode	text	YES
+verification_code	text	YES
+content	text	YES
+status	text	NO
+letter_type	text	NO
+color_code	text	YES
+
+...roles
+id	integer	NO
+parent_role_id	integer	YES
+name	text	NO
+description	text	YES
+
+...routing_rules
+id	integer	NO
+priority	integer	YES
+is_active	boolean	YES
+created_at	timestamp without time zone	YES
+created_by	integer	YES
+conditions	jsonb	NO
+name	text	NO
+department	text	NO
+description	text	YES
+target_department	text	NO
+
+...user_roles
+user_id	integer	NO
+role_id	integer	NO
+id	integer	NO
+
+...users
+created_by	integer	YES
+can_assign_letters	boolean	YES
+is_active	boolean	YES
+email_verified	boolean	YES
+email_verification_expires	timestamp without time zone	YES
+reset_password_expires	timestamp without time zone	YES
+last_login_at	timestamp without time zone	YES
+created_at	timestamp without time zone	YES
+id	integer	NO
+level	integer	YES
+email	text	NO
+name	text	NO
+password	text	NO
+role	text	NO
+department	text	YES
+position	text	YES
+email_verification_token	text	YES
+reset_password_token	text	YES
+

@@ -1,7 +1,9 @@
 import { Express } from 'express';
 import { z } from 'zod';
-import { pool } from './db';
+import { pool, db } from './db';
 import { comparePassword, generateToken, AuthenticatedRequest, authenticateToken } from './auth';
+import { users, folders, letters, auditLogs } from '../shared/schema';
+import { eq, count, desc } from 'drizzle-orm';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -111,11 +113,16 @@ export function registerAuthRoutes(app: Express) {
   // Stats endpoint
   app.get('/api/stats', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      const [totalFoldersResult] = await db.select({ count: count() }).from(folders);
+      const [totalLettersResult] = await db.select({ count: count() }).from(letters);
+      const [activeUsersResult] = await db.select({ count: count() }).from(users).where(eq(users.isActive, true));
+      const [pendingLettersResult] = await db.select({ count: count() }).from(letters).where(eq(letters.status, 'pending_review'));
+
       res.json({
-        totalFolders: 15,
-        activeLetters: 23,
-        pendingVerification: 8,
-        activeUsers: 12
+        totalFolders: totalFoldersResult.count || 0,
+        activeLetters: totalLettersResult.count || 0,
+        pendingVerification: pendingLettersResult.count || 0,
+        activeUsers: activeUsersResult.count || 0
       });
     } catch (error) {
       console.error('Stats error:', error);
@@ -126,16 +133,11 @@ export function registerAuthRoutes(app: Express) {
   // Recent letters endpoint
   app.get('/api/letters/recent', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      res.json([
-        {
-          id: 1,
-          title: "Budget Request 2024",
-          reference: "BUD-2024-001",
-          status: "pending_review",
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ]);
+      const recentLetters = await db.select().from(letters)
+        .orderBy(desc(letters.uploadedAt))
+        .limit(10);
+      
+      res.json(recentLetters);
     } catch (error) {
       console.error('Recent letters error:', error);
       res.status(500).json({ message: 'Failed to fetch recent letters' });
@@ -145,15 +147,11 @@ export function registerAuthRoutes(app: Express) {
   // Audit logs endpoint
   app.get('/api/audit-logs/recent', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      res.json([
-        {
-          id: 1,
-          action: "login",
-          userId: req.user?.id,
-          createdAt: new Date(),
-          details: "User logged in successfully"
-        }
-      ]);
+      const recentLogs = await db.select().from(auditLogs)
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(10);
+      
+      res.json(recentLogs);
     } catch (error) {
       console.error('Audit logs error:', error);
       res.status(500).json({ message: 'Failed to fetch audit logs' });
@@ -163,15 +161,11 @@ export function registerAuthRoutes(app: Express) {
   // Folders endpoint
   app.get('/api/folders', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      res.json([
-        {
-          id: 1,
-          name: "Finance Department",
-          description: "Financial documents and reports",
-          department: req.user?.department || "Finance",
-          createdAt: new Date()
-        }
-      ]);
+      const userFolders = await db.select().from(folders)
+        .where(eq(folders.isActive, true))
+        .orderBy(desc(folders.createdAt));
+      
+      res.json(userFolders);
     } catch (error) {
       console.error('Folders error:', error);
       res.status(500).json({ message: 'Failed to fetch folders' });
