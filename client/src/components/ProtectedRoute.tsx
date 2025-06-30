@@ -1,16 +1,63 @@
-import { ReactNode } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { ReactNode, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole?: string;
+  requiredRoles?: string[];
   adminOnly?: boolean;
 }
 
-export default function ProtectedRoute({ children, requiredRole, adminOnly }: ProtectedRouteProps) {
-  const { firebaseUser, user, userRole, loading } = useAuth();
+interface User {
+  id: number;
+  email: string;
+  name: string;
+  roles: string[];
+  department?: string;
+  position?: string;
+}
+
+export default function ProtectedRoute({ children, requiredRoles, adminOnly }: ProtectedRouteProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        setLocation("/login");
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        } else {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user_data');
+          setLocation("/login");
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        setLocation("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [setLocation]);
 
   if (loading) {
     return (
@@ -20,17 +67,16 @@ export default function ProtectedRoute({ children, requiredRole, adminOnly }: Pr
     );
   }
 
-  if (!firebaseUser) {
-    setLocation("/login-selection");
+  if (!user) {
     return null;
   }
 
-  if (adminOnly && userRole !== 'admin') {
+  if (adminOnly && !user.roles.includes('admin')) {
     setLocation("/dashboard");
     return null;
   }
 
-  if (requiredRole && userRole !== requiredRole) {
+  if (requiredRoles && !requiredRoles.some(role => user.roles.includes(role))) {
     setLocation("/dashboard");
     return null;
   }

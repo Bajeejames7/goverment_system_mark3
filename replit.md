@@ -5,10 +5,10 @@ A comprehensive Records Management Unit (RMU) system for Kenyan government state
 
 ## Architecture
 - **Frontend**: React with TypeScript, Wouter routing, TanStack Query
-- **Backend**: Express.js with Firebase Admin SDK
-- **Database**: Supabase PostgreSQL with Drizzle ORM
-- **Authentication**: Firebase Auth with custom claims
-- **Storage**: Supabase cloud storage for documents
+- **Backend**: Express.js with JWT authentication
+- **Database**: Aiven PostgreSQL with Drizzle ORM
+- **Authentication**: JWT-based with bcryptjs password hashing
+- **Storage**: File system with secure token-based access
 - **UI**: Tailwind CSS with shadcn/ui components
 
 ## Government Hierarchy

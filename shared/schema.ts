@@ -4,17 +4,35 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  firebaseUid: text("firebase_uid").notNull().unique(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  role: text("role").notNull(), // 'admin', 'registry', 'ps', 'officer', 'secretary'
-  department: text("department"), // 'Admin', 'Fin', 'Acc', 'ICT', 'Comm', 'HRM', 'Legal', 'InternAudit', 'Procurement', 'Planning'
-  position: text("position"), // 'Secretary', 'PS', 'AD', 'DFS', 'CHEM_MIN', 'MIP', 'ENG', 'KIN', 'Registry'
-  level: integer("level").default(0), // 0=Secretary, 1=PS, 2=Departments, 3=Officers
+  password: text("password").notNull(),
+  department: text("department"),
+  position: text("position"),
+  level: integer("level").default(0),
   canAssignLetters: boolean("can_assign_letters").default(false),
   isActive: boolean("is_active").default(true),
+  emailVerified: boolean("email_verified").default(false),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationExpires: timestamp("email_verification_expires"),
+  resetPasswordToken: text("reset_password_token"),
+  resetPasswordExpires: timestamp("reset_password_expires"),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
-  createdBy: text("created_by"), // Firebase UID of admin who created this user
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+export const roles = pgTable("roles", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  parentRoleId: integer("parent_role_id").references(() => roles.id),
+});
+
+export const userRoles = pgTable("user_roles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  roleId: integer("role_id").references(() => roles.id, { onDelete: 'cascade' }).notNull(),
 });
 
 export const folders = pgTable("folders", {
@@ -27,33 +45,43 @@ export const folders = pgTable("folders", {
   isActive: boolean("is_active").default(true),
 });
 
+export const files = pgTable("files", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  path: text("path").notNull(),
+  uploadedBy: integer("uploaded_by").references(() => users.id),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+  metadata: jsonb("metadata"),
+  folderId: integer("folder_id").references(() => folders.id),
+});
+
 export const letters = pgTable("letters", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   reference: text("reference").notNull().unique(),
   folderId: integer("folder_id").references(() => folders.id),
+  fileId: integer("file_id").references(() => files.id),
   content: text("content"),
-  fileName: text("file_name"),
-  fileSize: integer("file_size"),
-  fileType: text("file_type"),
-  filePath: text("file_path"), // Supabase storage path
-  fileUrl: text("file_url"), // Supabase public URL
-  status: text("status").notNull().default("pending"), // 'pending', 'in_registry', 'with_ps', 'assigned', 'in_progress', 'completed', 'filed'
-  letterType: text("letter_type").notNull().default("formal"), // 'formal', 'informal'
+  status: text("status").notNull().default("pending"),
+  letterType: text("letter_type").notNull().default("formal"),
   requiresPasscode: boolean("requires_passcode").default(false),
-  passcode: text("passcode"), // For informal letters
+  passcode: text("passcode"),
   verificationCode: text("verification_code").unique(),
-  uploadedBy: text("uploaded_by").notNull(), // Firebase UID
-  assignedTo: text("assigned_to"), // Firebase UID of assigned officer
-  assignedBy: text("assigned_by"), // Firebase UID of PS who assigned
-  verifiedBy: text("verified_by"), // Firebase UID
+  uploadedBy: integer("uploaded_by").references(() => users.id).notNull(),
+  assignedTo: integer("assigned_to").references(() => users.id),
+  assignedBy: integer("assigned_by").references(() => users.id),
+  verifiedBy: integer("verified_by").references(() => users.id),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
-  openedAt: timestamp("opened_at"), // When letter was first opened
-  assignedAt: timestamp("assigned_at"), // When PS assigned the letter
+  openedAt: timestamp("opened_at"),
+  assignedAt: timestamp("assigned_at"),
   verifiedAt: timestamp("verified_at"),
   completedAt: timestamp("completed_at"),
-  colorCode: text("color_code").default("gray"), // 'gray'=new, 'blue'=opened, 'yellow'=in_progress, 'green'=completed
-  metadata: jsonb("metadata"), // Additional document metadata
+  colorCode: text("color_code").default("gray"),
+  metadata: jsonb("metadata"),
 });
 
 export const auditLogs = pgTable("audit_logs", {
