@@ -105,18 +105,14 @@ export default function UniversalLogin() {
           <CardHeader className="text-center pb-6 pt-8 relative z-10">
             {/* Kenya Logo with Blue Circle */}
             <div className="flex justify-center mb-6">
-              <div className="relative">
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full p-1 shadow-2xl shadow-blue-500/30 ring-4 ring-blue-100 dark:ring-blue-900/30">
-                  <div className="w-full h-full bg-white rounded-full p-2 flex items-center justify-center">
-                    <img 
-                      src={logoPath} 
-                      alt="Republic of Kenya" 
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full p-2 shadow-2xl shadow-blue-500/30 ring-4 ring-blue-100 dark:ring-blue-900/30 flex items-center justify-center">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center p-1">
+                  <img 
+                    src={logoPath} 
+                    alt="Republic of Kenya" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
-                {/* Pulse animation ring */}
-                <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"></div>
               </div>
             </div>
             
