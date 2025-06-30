@@ -43,25 +43,48 @@ export function verifyToken(token: string): any {
   }
 }
 
-// Get user with roles
+// Get user with roles using raw SQL
 export async function getUserWithRoles(userId: number) {
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, userId),
-    with: {
-      userRoles: {
-        with: {
-          role: true
-        }
-      }
+  try {
+    const { pool } = await import('./db');
+    
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE id = $1 AND is_active = true',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) return null;
+
+    const user = userResult.rows[0];
+
+    // Get user roles
+    const rolesResult = await pool.query(`
+      SELECT r.name 
+      FROM roles r
+      INNER JOIN user_roles ur ON r.id = ur.role_id
+      WHERE ur.user_id = $1
+    `, [userId]);
+
+    let userRoleNames = rolesResult.rows.map(row => row.name);
+    
+    // If no roles found in user_roles table, check if user has a direct role field
+    if (userRoleNames.length === 0 && user.role) {
+      userRoleNames = [user.role];
     }
-  });
 
-  if (!user) return null;
-
-  return {
-    ...user,
-    roles: user.userRoles?.map(ur => ur.role.name) || []
-  };
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      roles: userRoleNames,
+      department: user.department,
+      position: user.position,
+      isActive: user.is_active,
+    };
+  } catch (error) {
+    console.error('Error getting user with roles:', error);
+    return null;
+  }
 }
 
 // Authentication middleware

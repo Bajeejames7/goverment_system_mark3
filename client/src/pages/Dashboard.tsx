@@ -18,6 +18,12 @@ export default function Dashboard() {
   const getPageTitle = (path: string) => {
     const titles: Record<string, string> = {
       "/dashboard": "Dashboard Overview",
+      "/dashboard/admin": "Admin Dashboard",
+      "/dashboard/ps": "Principal Secretary Dashboard",
+      "/dashboard/secretary": "Secretary Dashboard",
+      "/dashboard/registry": "Registry Dashboard",
+      "/dashboard/department": "Department Dashboard",
+      "/dashboard/officer": "Officer Dashboard",
       "/dashboard/folders": "Document Folders",
       "/dashboard/letters": "Letters Management",
       "/dashboard/users": "User Management",
@@ -29,6 +35,13 @@ export default function Dashboard() {
 
   const renderContent = () => {
     switch (location) {
+      case "/dashboard/admin":
+      case "/dashboard/ps":
+      case "/dashboard/secretary":
+      case "/dashboard/registry":
+      case "/dashboard/department":
+      case "/dashboard/officer":
+        return <Overview />;
       case "/dashboard/folders":
         return <Folders />;
       case "/dashboard/letters":
