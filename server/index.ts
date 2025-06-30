@@ -39,11 +39,11 @@ app.use((req, res, next) => {
 
 (async () => {
   // Register authentication routes first
+  const { registerAuthRoutes } = await import('./auth-temp');
   registerAuthRoutes(app);
   
-  // Initialize database with default roles and admin user
-  const { initializeDatabase } = await import('./init-database');
-  await initializeDatabase();
+  // Database initialization disabled due to connection issues
+  // Will be re-enabled once database connectivity is resolved
   
   const server = await registerRoutes(app);
 

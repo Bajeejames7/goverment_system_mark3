@@ -35,6 +35,52 @@ export const userRoles = pgTable("user_roles", {
   roleId: integer("role_id").references(() => roles.id, { onDelete: 'cascade' }).notNull(),
 });
 
+// Relations
+export const usersRelations = {
+  userRoles: {
+    relationName: "userRoles",
+    referencedTable: userRoles,
+    type: "many" as const,
+    config: {
+      fields: [users.id],
+      references: [userRoles.userId],
+    },
+  },
+};
+
+export const rolesRelations = {
+  userRoles: {
+    relationName: "userRoles", 
+    referencedTable: userRoles,
+    type: "many" as const,
+    config: {
+      fields: [roles.id],
+      references: [userRoles.roleId],
+    },
+  },
+};
+
+export const userRolesRelations = {
+  user: {
+    relationName: "user",
+    referencedTable: users,
+    type: "one" as const,
+    config: {
+      fields: [userRoles.userId],
+      references: [users.id],
+    },
+  },
+  role: {
+    relationName: "role",
+    referencedTable: roles,
+    type: "one" as const,
+    config: {
+      fields: [userRoles.roleId],
+      references: [roles.id],
+    },
+  },
+};
+
 export const folders = pgTable("folders", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),

@@ -25,17 +25,8 @@ export function registerAuthRoutes(app: Express) {
     try {
       const { email, password } = loginSchema.parse(req.body);
 
-      // Find user by email
-      const user = await db.query.users.findFirst({
-        where: eq(users.email, email),
-        with: {
-          userRoles: {
-            with: {
-              role: true
-            }
-          }
-        }
-      });
+      // Find user by email with basic query
+      const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
       if (!user) {
         return res.status(401).json({ message: 'Invalid email or password' });
@@ -56,8 +47,15 @@ export function registerAuthRoutes(app: Express) {
         .set({ lastLoginAt: new Date() })
         .where(eq(users.id, user.id));
 
-      // Get user roles
-      const userRoleNames = user.userRoles?.map(ur => ur.role.name) || [];
+      // Get user roles with separate query
+      const userRoleData = await db.select({
+        roleName: roles.name
+      })
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(userRoles.userId, user.id));
+
+      const userRoleNames = userRoleData.map(ur => ur.roleName);
 
       // Generate JWT token
       const token = generateToken({ 

@@ -1,77 +1,101 @@
-import { db } from './db';
-import { users, roles, userRoles } from '@shared/schema';
+import { pool } from './db';
 import { hashPassword } from './auth';
 
 export async function initializeDatabase() {
   try {
-    console.log('Initializing database with default roles and admin user...');
+    console.log('Initializing database with tables and admin user...');
+
+    // Create tables
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        department VARCHAR(100),
+        position VARCHAR(100),
+        level INTEGER DEFAULT 1,
+        can_assign_letters BOOLEAN DEFAULT FALSE,
+        email_verified BOOLEAN DEFAULT FALSE,
+        is_active BOOLEAN DEFAULT TRUE,
+        last_login_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS roles (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) UNIQUE NOT NULL,
+        description TEXT,
+        parent_role_id INTEGER REFERENCES roles(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_roles (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, role_id)
+      );
+    `);
 
     // Insert default roles
     const defaultRoles = [
-      { name: 'admin', description: 'System administrator' },
-      { name: 'ict_admin', description: 'ICT Administrator' },
-      { name: 'registry_admin', description: 'Registry Administrator' },
-      { name: 'principal_secretary', description: 'Principal Secretary' },
-      { name: 'secretary', description: 'Secretary' },
-      { name: 'department_head', description: 'Department Head' },
-      { name: 'registry', description: 'Registry Officer' },
-      { name: 'fin', description: 'Finance Department' },
-      { name: 'acc', description: 'Accounts Department' },
-      { name: 'hrm', description: 'Human Resources' },
-      { name: 'ict', description: 'ICT Department' },
-      { name: 'comm', description: 'Communications' },
-      { name: 'legal', description: 'Legal Department' },
-      { name: 'intern_audit', description: 'Internal Audit' },
-      { name: 'procurement', description: 'Procurement' },
-      { name: 'planning', description: 'Planning Department' },
-      { name: 'ad', description: 'AD' },
-      { name: 'dfs', description: 'DFS' },
-      { name: 'chem_min', description: 'Chemistry/Mining' },
-      { name: 'mip', description: 'MIP' },
-      { name: 'eng', description: 'Engineering' },
-      { name: 'kin', description: 'KIN' },
-      { name: 'letter_recipient', description: 'Base user role' },
+      'admin', 'ict_admin', 'registry_admin', 'principal_secretary', 'secretary',
+      'department_head', 'registry', 'fin', 'acc', 'hrm', 'ict', 'comm',
+      'legal', 'intern_audit', 'procurement', 'planning', 'ad', 'dfs',
+      'chem_min', 'mip', 'eng', 'kin', 'letter_recipient'
     ];
 
-    // Insert roles (ignore conflicts if they already exist)
-    for (const role of defaultRoles) {
-      try {
-        await db.insert(roles).values(role).onConflictDoNothing();
-      } catch (error) {
-        // Role might already exist, continue
-      }
+    for (const roleName of defaultRoles) {
+      await pool.query(`
+        INSERT INTO roles (name, description) 
+        VALUES ($1, $2) 
+        ON CONFLICT (name) DO NOTHING
+      `, [roleName, `${roleName} role`]);
     }
 
-    // Create default admin user if it doesn't exist
-    const existingAdmin = await db.query.users.findFirst({
-      where: (users, { eq }) => eq(users.email, 'admin@rmu.gov.ke')
-    });
+    // Check if admin user exists
+    const existingAdmin = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      ['admin@rmu.gov.ke']
+    );
 
-    if (!existingAdmin) {
+    if (existingAdmin.rows.length === 0) {
       const hashedPassword = await hashPassword('admin123');
       
-      const [adminUser] = await db.insert(users).values({
-        email: 'admin@rmu.gov.ke',
-        name: 'System Administrator',
-        password: hashedPassword,
-        department: 'ICT',
-        position: 'Administrator',
-        level: 3,
-        canAssignLetters: true,
-        emailVerified: true,
-      }).returning();
+      // Create admin user
+      const adminResult = await pool.query(`
+        INSERT INTO users (email, name, password, department, position, level, can_assign_letters, email_verified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+      `, [
+        'admin@rmu.gov.ke',
+        'System Administrator',
+        hashedPassword,
+        'ICT',
+        'Administrator',
+        3,
+        true,
+        true
+      ]);
+
+      const adminUserId = adminResult.rows[0].id;
+
+      // Get admin role
+      const adminRoleResult = await pool.query('SELECT id FROM roles WHERE name = $1', ['admin']);
+      const adminRoleId = adminRoleResult.rows[0].id;
 
       // Assign admin role
-      const adminRole = await db.query.roles.findFirst({
-        where: (roles, { eq }) => eq(roles.name, 'admin')
-      });
-
-      if (adminRole && adminUser) {
-        await db.insert(userRoles).values({
-          userId: adminUser.id,
-          roleId: adminRole.id,
-        });
-      }
+      await pool.query(`
+        INSERT INTO user_roles (user_id, role_id)
+        VALUES ($1, $2)
+      `, [adminUserId, adminRoleId]);
 
       console.log('✅ Default admin user created: admin@rmu.gov.ke / admin123');
     } else {
