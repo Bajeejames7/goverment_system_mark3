@@ -103,28 +103,12 @@ export default function UniversalLogin() {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-transparent to-blue-100/30 dark:from-slate-800/30 dark:via-transparent dark:to-slate-700/20"></div>
           
           <CardHeader className="text-center pb-6 pt-8 relative z-10">
-            {/* Kenya Logo with Blue Circle */}
-            <div className="flex justify-center mb-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full p-2 shadow-2xl shadow-blue-500/30 ring-4 ring-blue-100 dark:ring-blue-900/30 flex items-center justify-center">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center p-1">
-                  <img 
-                    src={logoPath} 
-                    alt="Republic of Kenya" 
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              </div>
-            </div>
-            
             <CardTitle className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
               Republic of Kenya
             </CardTitle>
-            <CardTitle className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent mb-2">
+            <CardTitle className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent mb-4">
               RMU System Login
             </CardTitle>
-            <CardDescription className="text-slate-600 dark:text-slate-400 font-medium">
-              Records Management Unit - Government of Kenya
-            </CardDescription>
             <div className="w-16 h-0.5 bg-gradient-to-r from-blue-500 to-blue-600 mx-auto mt-3 mb-4 rounded-full"></div>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Enter your credentials to access the system
