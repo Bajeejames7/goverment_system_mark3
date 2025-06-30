@@ -84,31 +84,35 @@ export default function UniversalLogin() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      const response = await apiRequest({
-        url: '/api/login',
-        method: 'POST',
-        data: {
-          email: data.email,
-          password: data.password,
-        },
+      const response = await apiRequest('POST', '/api/login', {
+        email: data.email,
+        password: data.password,
       });
 
-      if (response.token && response.user) {
+      const result = await response.json();
+
+      if (result.success && result.token && result.user) {
         // Store JWT token
-        localStorage.setItem('auth_token', response.token);
+        localStorage.setItem('auth_token', result.token);
         
         // Store user data
-        localStorage.setItem('user_data', JSON.stringify(response.user));
+        localStorage.setItem('user_data', JSON.stringify(result.user));
 
         toast({
           title: "Success",
-          description: `Welcome back, ${response.user.name}! Redirecting to your dashboard...`,
+          description: `Welcome back, ${result.user.name}! Redirecting to your dashboard...`,
         });
 
         // Redirect based on user roles
         setTimeout(() => {
-          redirectBasedOnRole(response.user.roles);
+          redirectBasedOnRole(result.user.roles);
         }, 1000);
+      } else {
+        toast({
+          title: "Login Failed",
+          description: result.message || "Invalid email or password",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({
