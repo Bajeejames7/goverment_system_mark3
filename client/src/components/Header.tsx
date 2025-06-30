@@ -111,13 +111,13 @@ export default function Header({ title, onSidebarToggle }: HeaderProps) {
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm hover:shadow-md"
               aria-label="Toggle theme"
             >
               {isDark ? (
-                <Sun className="h-5 w-5 text-yellow-500" />
+                <Sun className="h-5 w-5 text-amber-500 transition-colors" />
               ) : (
-                <Moon className="h-5 w-5 text-gray-600" />
+                <Moon className="h-5 w-5 text-slate-600 transition-colors" />
               )}
             </Button>
 
@@ -126,11 +126,11 @@ export default function Header({ title, onSidebarToggle }: HeaderProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {getInitials(user?.name || 'User')}
+                    {getInitials(user?.name || user?.email || 'User')}
                   </div>
                   <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-24">
-                      {user?.name || 'User'}
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-32">
+                      {user?.name || user?.email?.split('@')[0] || 'User'}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                       {userRole}

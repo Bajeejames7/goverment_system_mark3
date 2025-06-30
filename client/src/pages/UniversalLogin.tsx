@@ -11,7 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Sun, Moon, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Sun, Moon, Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
 import logoPath from "@assets/Republic_of_kenya_logo.jpeg";
 
 const loginSchema = z.object({
@@ -25,6 +26,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function UniversalLogin() {
   const [, setLocation] = useLocation();
   const { isDark, toggleTheme } = useTheme();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +64,14 @@ export default function UniversalLogin() {
 
       if (response.ok && result.success) {
         localStorage.setItem('auth_token', result.token);
+        
+        // Show success notification
+        toast({
+          title: "Login Successful",
+          description: "Welcome to the RMU System",
+          duration: 3000,
+        });
+        
         setLocation('/dashboard');
       } else {
         setError(result.message || 'Invalid credentials. Please try again.');
