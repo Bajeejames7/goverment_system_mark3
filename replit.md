@@ -27,11 +27,11 @@ A comprehensive Records Management Unit (RMU) system for Kenyan government state
 - Light/dark theme support
 
 ## Recent Changes
-- **2025-01-26**: Fixed authentication system with proper Firebase user context
-- **2025-01-26**: Implemented role-based dashboard filtering
-- **2025-01-26**: Added letter archiving system for completed work
-- **2025-01-26**: Enhanced user management with hierarchy constraints
-- **2025-01-26**: Fixed firebase-admin dependency installation
+- **2025-01-30**: Implemented universal login page with JWT authentication
+- **2025-01-30**: Connected to Aiven PostgreSQL database with existing user data
+- **2025-01-30**: Added role-based dashboard routing for government hierarchy
+- **2025-01-30**: Configured bcrypt password authentication with existing users
+- **2025-01-30**: Migrated from Firebase to JWT-based authentication system
 
 ## User Preferences
 - Government-appropriate professional interface

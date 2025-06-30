@@ -38,7 +38,7 @@ export function registerAuthRoutes(app: Express) {
         [user.id]
       );
 
-      // Get user roles
+      // Get user roles from user_roles table and roles table
       const rolesResult = await pool.query(`
         SELECT r.name 
         FROM roles r
@@ -46,7 +46,12 @@ export function registerAuthRoutes(app: Express) {
         WHERE ur.user_id = $1
       `, [user.id]);
 
-      const userRoleNames = rolesResult.rows.map(row => row.name);
+      let userRoleNames = rolesResult.rows.map(row => row.name);
+      
+      // If no roles found in user_roles table, check if user has a direct role field
+      if (userRoleNames.length === 0 && user.role) {
+        userRoleNames = [user.role];
+      }
 
       // Generate JWT token
       const token = generateToken({ 

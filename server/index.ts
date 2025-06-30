@@ -38,12 +38,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Register authentication routes first
-  const { registerAuthRoutes } = await import('./auth-temp');
+  // Register authentication routes using Aiven database
+  const { registerAuthRoutes } = await import('./auth-routes-simple');
   registerAuthRoutes(app);
-  
-  // Database initialization disabled due to connection issues
-  // Will be re-enabled once database connectivity is resolved
   
   const server = await registerRoutes(app);
 
