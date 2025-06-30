@@ -107,4 +107,74 @@ export function registerAuthRoutes(app: Express) {
       res.status(500).json({ message: 'Logout failed' });
     }
   });
+
+  // Stats endpoint
+  app.get('/api/stats', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      res.json({
+        totalFolders: 15,
+        activeLetters: 23,
+        pendingVerification: 8,
+        activeUsers: 12
+      });
+    } catch (error) {
+      console.error('Stats error:', error);
+      res.status(500).json({ message: 'Failed to fetch stats' });
+    }
+  });
+
+  // Recent letters endpoint
+  app.get('/api/letters/recent', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      res.json([
+        {
+          id: 1,
+          title: "Budget Request 2024",
+          reference: "BUD-2024-001",
+          status: "pending_review",
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ]);
+    } catch (error) {
+      console.error('Recent letters error:', error);
+      res.status(500).json({ message: 'Failed to fetch recent letters' });
+    }
+  });
+
+  // Audit logs endpoint
+  app.get('/api/audit-logs/recent', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      res.json([
+        {
+          id: 1,
+          action: "login",
+          userId: req.user?.id,
+          createdAt: new Date(),
+          details: "User logged in successfully"
+        }
+      ]);
+    } catch (error) {
+      console.error('Audit logs error:', error);
+      res.status(500).json({ message: 'Failed to fetch audit logs' });
+    }
+  });
+
+  // Folders endpoint
+  app.get('/api/folders', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      res.json([
+        {
+          id: 1,
+          name: "Finance Department",
+          description: "Financial documents and reports",
+          department: req.user?.department || "Finance",
+          createdAt: new Date()
+        }
+      ]);
+    } catch (error) {
+      console.error('Folders error:', error);
+      res.status(500).json({ message: 'Failed to fetch folders' });
+    }
+  });
 }

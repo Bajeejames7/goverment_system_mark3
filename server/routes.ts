@@ -1,40 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { auth } from "./firebase-admin";
+import { authenticateToken, requireAdmin, AuthenticatedRequest } from "./auth";
 import { insertUserSchema, insertFolderSchema, insertLetterSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
 
-// Middleware to verify Firebase token
-const authenticateUser = async (req: any, res: any, next: any) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
 
-    const decodedToken = await auth.verifyIdToken(token);
-    req.user = decodedToken;
-    
-    // Get user from storage
-    const user = await storage.getUserByFirebaseUid(decodedToken.uid);
-    req.userProfile = user;
-    
-    next();
-  } catch (error) {
-    res.status(401).json({ message: "Invalid token" });
-  }
-};
-
-// Middleware to check admin role
-const requireAdmin = (req: any, res: any, next: any) => {
-  if (req.userProfile?.role !== 'admin') {
-    return res.status(403).json({ message: "Admin access required" });
-  }
-  next();
-};
 
 // Configure multer for file uploads
 const upload = multer({
