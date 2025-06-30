@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import Welcome from "@/pages/Welcome";
 import UniversalLogin from "@/pages/UniversalLogin";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/not-found";
@@ -23,9 +24,7 @@ function Router() {
           <Dashboard />
         </ProtectedRoute>
       </Route>
-      <Route path="/">
-        <UniversalLogin />
-      </Route>
+      <Route path="/" component={Welcome} />
       <Route component={NotFound} />
     </Switch>
   );

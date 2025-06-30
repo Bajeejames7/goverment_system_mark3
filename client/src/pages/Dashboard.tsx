@@ -58,20 +58,22 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Sidebar 
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)} 
       />
       
-      <div className="lg:pl-64">
+      <div className="lg:pl-80 transition-all duration-300">
         <Header 
           title={getPageTitle(location)}
           onSidebarToggle={() => setSidebarOpen(true)}
         />
         
-        <main className="p-4 sm:p-6 lg:p-8">
-          {renderContent()}
+        <main className="p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-4rem)]">
+          <div className="max-w-7xl mx-auto">
+            {renderContent()}
+          </div>
         </main>
       </div>
       

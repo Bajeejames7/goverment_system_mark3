@@ -1,6 +1,21 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { logout } from "@/lib/auth";
 import { useLocation } from "wouter";
+import { 
+  LayoutDashboard, 
+  FolderOpen, 
+  Mail, 
+  Users, 
+  ShieldCheck, 
+  BarChart3, 
+  LogOut, 
+  X,
+  Settings
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import logoPath from "@assets/Republic_of_kenya_logo.jpeg";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,23 +29,34 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate("/login-selection");
+      navigate("/login");
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
   const navigationItems = [
-    { id: "overview", label: "Dashboard", icon: "fas fa-tachometer-alt", path: "/dashboard" },
-    { id: "folders", label: "Document Folders", icon: "fas fa-folder", path: "/dashboard/folders" },
-    { id: "letters", label: "Letters Management", icon: "fas fa-envelope", path: "/dashboard/letters" },
-    ...(isAdmin ? [{ id: "users", label: "User Management", icon: "fas fa-users", path: "/dashboard/users" }] : []),
-    { id: "verification", label: "Verification", icon: "fas fa-shield-check", path: "/dashboard/verification" },
-    { id: "reports", label: "Reports", icon: "fas fa-chart-bar", path: "/dashboard/reports" },
+    { id: "overview", label: "Dashboard", icon: LayoutDashboard, path: "/dashboard", color: "text-blue-600" },
+    { id: "folders", label: "Document Folders", icon: FolderOpen, path: "/dashboard/folders", color: "text-amber-600" },
+    { id: "letters", label: "Letters Management", icon: Mail, path: "/dashboard/letters", color: "text-green-600" },
+    ...(isAdmin ? [{ id: "users", label: "User Management", icon: Users, path: "/dashboard/users", color: "text-purple-600" }] : []),
+    { id: "verification", label: "Verification", icon: ShieldCheck, path: "/dashboard/verification", color: "text-red-600" },
+    { id: "reports", label: "Reports", icon: BarChart3, path: "/dashboard/reports", color: "text-indigo-600" },
   ];
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const getRoleBadgeColor = (role: string) => {
+    const colors = {
+      admin: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400",
+      ps: "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400",
+      secretary: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
+      registry: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
+      officer: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400",
+    };
+    return colors[role as keyof typeof colors] || colors.officer;
   };
 
   return (
@@ -38,72 +64,117 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-gray-600 bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
           onClick={onClose}
         />
       )}
       
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+      <div className={`fixed inset-y-0 left-0 z-50 w-80 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out lg:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="flex items-center justify-between h-16 px-6 bg-blue-600">
-          <div className="flex items-center">
-            <i className="fas fa-university text-white text-xl mr-3"></i>
-            <span className="text-white font-semibold">RMU System</span>
+        {/* Header */}
+        <div className="flex items-center justify-between h-20 px-6 bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg">
+          <div className="flex items-center space-x-3">
+            <img 
+              src={logoPath} 
+              alt="Kenya Logo" 
+              className="h-10 w-10 rounded-full shadow-lg ring-2 ring-white/20"
+            />
+            <div>
+              <h2 className="text-white font-bold text-lg">RMU System</h2>
+              <p className="text-blue-100 text-xs">Records Management</p>
+            </div>
           </div>
-          <button 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onClose}
-            className="text-white hover:text-gray-200 lg:hidden"
+            className="lg:hidden text-white hover:bg-white/20 rounded-full p-2"
           >
-            <i className="fas fa-times"></i>
-          </button>
+            <X className="h-5 w-5" />
+          </Button>
         </div>
-        
-        <nav className="mt-8 px-4 space-y-2">
-          {navigationItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                navigate(item.path);
-                onClose();
-              }}
-              className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                location === item.path
-                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-r-2 border-blue-600'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <i className={`${item.icon} mr-3`}></i>
-              {item.label}
-            </button>
-          ))}
-        </nav>
 
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
-            <div className="flex items-center">
-              <div className="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium text-sm">
-                  {user?.displayName ? getInitials(user.displayName) : user?.email?.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {user?.displayName || user?.email}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                  {userRole}
-                </p>
+        {/* User Profile */}
+        <div className="p-6 bg-gradient-to-b from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+              {getInitials(user?.name || 'User')}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                {user?.name || 'Unknown User'}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                {user?.email}
+              </p>
+              <div className="flex items-center space-x-2 mt-2">
+                <Badge className={`text-xs px-2 py-1 ${getRoleBadgeColor(userRole || 'user')}`}>
+                  {userRole?.toUpperCase()}
+                </Badge>
+                {user?.department && (
+                  <Badge variant="outline" className="text-xs px-2 py-1">
+                    {user.department}
+                  </Badge>
+                )}
               </div>
             </div>
-            <button 
-              onClick={handleLogout}
-              className="mt-3 w-full text-left text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-            >
-              <i className="fas fa-sign-out-alt mr-2"></i>Sign out
-            </button>
           </div>
+        </div>
+
+        <Separator className="mx-6" />
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location === item.path;
+            
+            return (
+              <Button
+                key={item.id}
+                variant={isActive ? "secondary" : "ghost"}
+                className={`w-full justify-start h-12 px-4 transition-all duration-200 ${
+                  isActive
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm border-r-4 border-blue-600'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                }`}
+                onClick={() => {
+                  navigate(item.path);
+                  onClose();
+                }}
+              >
+                <Icon className={`mr-3 h-5 w-5 ${isActive ? item.color : 'text-gray-500'}`} />
+                <span className="font-medium">{item.label}</span>
+              </Button>
+            );
+          })}
+        </nav>
+
+        <Separator className="mx-6" />
+
+        {/* Footer Actions */}
+        <div className="p-4 space-y-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-start h-12 px-4 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            onClick={() => {
+              // Add settings functionality later
+            }}
+          >
+            <Settings className="mr-3 h-5 w-5 text-gray-500" />
+            <span className="font-medium">Settings</span>
+          </Button>
+          
+          <Button
+            variant="ghost"
+            className="w-full justify-start h-12 px-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+            onClick={handleLogout}
+          >
+            <LogOut className="mr-3 h-5 w-5" />
+            <span className="font-medium">Sign Out</span>
+          </Button>
         </div>
       </div>
     </>
