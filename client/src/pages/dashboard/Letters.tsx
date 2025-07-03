@@ -77,6 +77,19 @@ export default function Letters({ folderId }: { folderId?: string }) {
     return badges[status as keyof typeof badges] || badges.pending;
   };
 
+  // Utility function to determine file type
+  function getFileTypeIcon(fileName?: string) {
+    // Always show a document icon for all files
+    return <span className="text-white text-lg" title="File">📄</span>;
+  }
+
+  // Debug: log the letters data to verify fileName/originalFileName
+  useEffect(() => {
+    if (letters) {
+      console.log('DEBUG: Letters data', letters);
+    }
+  }, [letters]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -177,17 +190,17 @@ export default function Letters({ folderId }: { folderId?: string }) {
                     <tr key={letter.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                            {letter.fileName ? (
-                              letter.fileName.endsWith('.pdf') ? (
-                                <span className="text-white text-lg">📄</span>
-                              ) : (
-                                <span className="text-white text-lg">📝</span>
-                              )
-                            ) : (
-                              <FileText className="h-5 w-5 text-white" />
-                            )}
-                          </div>
+                          {/* Show file type icon and file name for debugging, no blue background */}
+                          <span className="flex items-center text-2xl">
+                            {getFileTypeIcon(letter.fileName) ||
+                              getFileTypeIcon(letter.originalFileName) ||
+                              getFileTypeIcon(letter.filename) ||
+                              getFileTypeIcon(letter.original_name) ||
+                              <FileText className="h-5 w-5 text-blue-600" />}
+                            <span className="ml-2 text-xs text-gray-400">
+                              {letter.fileName || letter.originalFileName || letter.filename || letter.original_name || 'NO FILE NAME'}
+                            </span>
+                          </span>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900 dark:text-white">{letter.title}</div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">{letter.reference}</div>
@@ -229,7 +242,6 @@ export default function Letters({ folderId }: { folderId?: string }) {
                               No File
                             </Button>
                           )}
-                          
                           {letter.fileName && letter.fileUrl && (
                             <Button 
                               variant="outline" 

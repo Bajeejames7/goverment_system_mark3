@@ -156,11 +156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (folderId && folderId !== 'all') {
         letters = letters.filter(letter => letter.folderId === parseInt(folderId as string));
       }
-      
       if (status && status !== 'all') {
         letters = letters.filter(letter => letter.status === status);
       }
-      
       if (date) {
         const filterDate = new Date(date as string);
         letters = letters.filter(letter => 
@@ -168,15 +166,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      // Add folder info to each letter
-      const lettersWithFolders = await Promise.all(
+      // Add folder and file info to each letter
+      const lettersWithFoldersAndFiles = await Promise.all(
         letters.map(async (letter) => {
           const folder = letter.folderId ? await storage.getFolder(letter.folderId) : null;
-          return { ...letter, folder };
+          let file = null;
+          if (letter.fileId) {
+            // Fetch file info from files table
+            file = await db.query.files.findFirst({ where: (f) => f.id === letter.fileId });
+          }
+          return {
+            ...letter,
+            folder,
+            fileName: file?.filename || null,
+            originalFileName: file?.originalName || null,
+          };
         })
       );
 
-      res.json(lettersWithFolders);
+      res.json(lettersWithFoldersAndFiles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch letters" });
     }
@@ -184,9 +192,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/letters/recent", authenticateToken, async (req, res) => {
     try {
+      console.log('DEBUG: /api/letters/recent endpoint called');
       const letters = await storage.getRecentLetters(10);
-      res.json(letters);
+      // Add folder and file info to each letter (same as /api/letters)
+      const lettersWithFoldersAndFiles = await Promise.all(
+        letters.map(async (letter) => {
+          const folder = letter.folderId ? await storage.getFolder(letter.folderId) : null;
+          let file = null;
+          if (letter.fileId) {
+            // Use a direct SQL query to fetch the file info
+            const result = await db.execute('SELECT filename, original_name FROM files WHERE id = $1', [letter.fileId]);
+            file = result?.rows?.[0] || null;
+          }
+          console.log('DEBUG: letter', letter);
+          console.log('DEBUG: file', file);
+          return {
+            ...letter,
+            folder,
+            fileName: file?.filename || null,
+            originalFileName: file?.original_name || null,
+          };
+        })
+      );
+      console.log('DEBUG: lettersWithFoldersAndFiles', lettersWithFoldersAndFiles);
+      res.json(lettersWithFoldersAndFiles);
     } catch (error) {
+      console.error('ERROR in /api/letters/recent:', error);
       res.status(500).json({ message: "Failed to fetch recent letters" });
     }
   });

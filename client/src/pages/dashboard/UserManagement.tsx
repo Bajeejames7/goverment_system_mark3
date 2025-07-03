@@ -242,7 +242,7 @@ export default function UserManagement() {
                     <TableCell>
                       <Badge variant={getRoleBadgeVariant(user.role)} className="flex items-center gap-1 w-fit">
                         {getRoleIcon(user.role)}
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Unknown"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-gray-600 dark:text-gray-300">{user.department}</TableCell>

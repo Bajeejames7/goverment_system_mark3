@@ -23,7 +23,6 @@ interface UploadLetterModalProps {
 type UploadLetterFormData = z.infer<typeof uploadLetterFormSchema>;
 
 export default function UploadLetterModal({ open, onOpenChange, folderId }: UploadLetterModalProps) {
-  console.log('DEBUG: UploadLetterModal rendered');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -74,19 +73,15 @@ export default function UploadLetterModal({ open, onOpenChange, folderId }: Uplo
       return result.letter;
     },
     onSuccess: () => {
-      console.log("Upload success");
       toast({
         title: "Success",
         description: "Letter uploaded successfully.",
-        // variant: "success", // keep only valid variants
       });
       queryClient.invalidateQueries({ queryKey: ["/api/letters"] });
-      // onOpenChange(false); // TEMP: comment out so modal stays open for debugging
       form.reset();
       setSelectedFile(null);
     },
     onError: (error: Error) => {
-      console.log("Upload error", error);
       toast({
         title: "Error",
         description: error.message,
@@ -96,7 +91,6 @@ export default function UploadLetterModal({ open, onOpenChange, folderId }: Uplo
   });
 
   const onSubmit = (data: UploadLetterFormData) => {
-    console.log("DEBUG: onSubmit called", data, selectedFile);
     if (!selectedFile) {
       toast({
         title: "File Required",
@@ -246,8 +240,6 @@ export default function UploadLetterModal({ open, onOpenChange, folderId }: Uplo
             )}
           </div>
         </form>
-        {/* DEBUG BUTTON: Remove after testing */}
-        <Button type="button" onClick={() => console.log('DEBUG: Modal is interactive')}>Debug Log</Button>
       </DialogContent>
     </Dialog>
   );

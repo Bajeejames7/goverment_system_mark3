@@ -51,6 +51,12 @@ export default function Overview() {
     }
   };
 
+  // Utility function to determine file type icon
+  function getFileTypeIcon(fileName?: string) {
+    // Always show a document icon for all files
+    return <span title="File">📄</span>;
+  }
+
   return (
     <div className="space-y-8">
       {/* Stats Cards */}
@@ -124,9 +130,10 @@ export default function Overview() {
                 recentLetters.map((letter: any) => (
                   <div key={letter.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <i className="fas fa-file-alt text-white"></i>
-                      </div>
+                      {/* File type icon logic, always show document icon */}
+                      <span className="flex items-center text-2xl">
+                        {getFileTypeIcon(letter.fileName || letter.originalFileName || letter.filename || letter.original_name) || <span>📄</span>}
+                      </span>
                       <div className="ml-3">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{letter.title}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
