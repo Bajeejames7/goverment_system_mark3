@@ -1,5 +1,4 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,10 +6,7 @@ import {
   Menu, 
   Search, 
   Sun, 
-  Moon, 
-  Bell, 
-  User,
-  ChevronDown
+  Moon
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -21,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import logoPath from "@assets/Republic_of_kenya_logo.jpeg";
+import { useEffect, useState } from "react";
 
 interface HeaderProps {
   title: string;
@@ -29,11 +26,25 @@ interface HeaderProps {
 
 export default function Header({ title, onSidebarToggle }: HeaderProps) {
   const { isDark, toggleTheme } = useTheme();
-  const { user, userRole } = useAuth();
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
+  useEffect(() => {
+    const updateStatus = () => {
+      // Try to fetch a lightweight resource to confirm actual connectivity
+      fetch("/favicon.ico", { method: "HEAD", cache: "no-store" })
+        .then(() => setIsOnline(true))
+        .catch(() => setIsOnline(false));
+    };
+    updateStatus();
+    const interval = setInterval(updateStatus, 2000); // check every 2 seconds
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', updateStatus);
+      window.removeEventListener('offline', updateStatus);
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -94,80 +105,30 @@ export default function Header({ title, onSidebarToggle }: HeaderProps) {
               <Search className="h-5 w-5 text-gray-600 dark:text-gray-300" />
             </Button>
 
-            {/* Notifications */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-            >
-              <Bell className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-red-500 text-white flex items-center justify-center">
-                3
-              </Badge>
-            </Button>
+            {/* Connection Status Indicator */}
+            <div
+              className={`w-4 h-4 rounded-full border-2 ${isOnline ? 'bg-green-500 border-green-600' : 'bg-red-500 border-red-600'} flex items-center justify-center transition-colors`}
+              title={isOnline ? 'Online' : 'Offline'}
+              aria-label={isOnline ? 'Online' : 'Offline'}
+              style={{ marginRight: '0.5rem' }}
+            />
             
             {/* Theme Toggle */}
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
-              className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm hover:shadow-md"
-              aria-label="Toggle theme"
+              className={`p-2.5 rounded-full border transition-all duration-200 shadow-sm hover:shadow-md 
+                ${isDark ? 'bg-white hover:bg-slate-100 border-slate-200 dark:border-slate-700' : 'bg-slate-900 hover:bg-slate-800 border-transparent'}`}
+              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
             >
               {isDark ? (
-                <Sun className="h-5 w-5 text-amber-500 transition-colors" />
+                <Sun className="h-5 w-5 text-yellow-400" />
               ) : (
-                <Moon className="h-5 w-5 text-slate-600 transition-colors" />
+                <Moon className="h-5 w-5 text-white" />
               )}
             </Button>
-
-            {/* User Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {getInitials(user?.name || user?.email || 'User')}
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-32">
-                      {user?.name || user?.email?.split('@')[0] || 'User'}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                      {userRole}
-                    </p>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-gray-500" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {user?.name}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {user?.email}
-                    </p>
-                    <Badge variant="secondary" className="w-fit text-xs">
-                      {userRole?.toUpperCase()}
-                    </Badge>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  Profile Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Bell className="mr-2 h-4 w-4" />
-                  Notifications
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600 dark:text-red-400">
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </div>

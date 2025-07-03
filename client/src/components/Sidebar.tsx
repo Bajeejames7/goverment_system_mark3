@@ -10,7 +10,6 @@ import {
   BarChart3, 
   LogOut, 
   X,
-  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +22,12 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { user, userRole, isAdmin } = useAuth();
+  const { user, userRole, isAdmin, loading } = useAuth();
+  // Debug: Log user object to help diagnose 'Unknown User' issue
+  console.debug('Sidebar user:', user);
+  if (!loading && !user) {
+    console.error('Sidebar: No user loaded. User is not authenticated or failed to load.');
+  }
   const [location, navigate] = useLocation();
 
   const handleLogout = async () => {
@@ -104,10 +108,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                {user?.name || 'Unknown User'}
+                {loading ? 'Loading...' : user?.name ? user.name : 'Not logged in'}
               </p>
               <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
-                {user?.email}
+                {loading ? 'Loading...' : user?.email ? user.email : 'Not logged in'}
               </p>
               <div className="flex items-center space-x-2 mt-2">
                 <Badge className={`text-xs px-2 py-1 ${getRoleBadgeColor(userRole || 'user')}`}>
@@ -156,17 +160,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Footer Actions */}
         <div className="p-4 space-y-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-start h-12 px-4 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={() => {
-              // Add settings functionality later
-            }}
-          >
-            <Settings className="mr-3 h-5 w-5 text-gray-500" />
-            <span className="font-medium">Settings</span>
-          </Button>
-          
           <Button
             variant="ghost"
             className="w-full justify-start h-12 px-4 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"

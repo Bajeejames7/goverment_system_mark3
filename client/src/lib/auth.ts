@@ -1,36 +1,24 @@
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-import { auth } from "./firebase";
+// All Firebase-related imports and logic removed. Implement Aiven/JWT-based auth here.
 
 export const loginWithEmail = async (email: string, password: string) => {
-  const result = await signInWithEmailAndPassword(auth, email, password);
-  // Get the ID token for server authentication
-  const idToken = await result.user.getIdToken();
-  localStorage.setItem('authToken', idToken);
-  return result.user;
+  // Implement login logic using /api/login endpoint
 };
 
 export const createUserWithEmail = async (email: string, password: string) => {
-  const result = await createUserWithEmailAndPassword(auth, email, password);
-  await sendEmailVerification(result.user);
-  return result.user;
+  // Implement user creation logic using /api/register endpoint
 };
 
 export const logout = async () => {
-  await signOut(auth);
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('token');
+  localStorage.removeItem('user_data');
 };
 
 export const getCurrentUserRole = async () => {
-  const user = auth.currentUser;
-  if (!user) return null;
-  
-  const token = await user.getIdTokenResult();
-  return token.claims.role as string | undefined;
+  // Implement logic to get the current user's role, possibly from a JWT token
 };
 
 export const getCurrentUserClaims = async () => {
-  const user = auth.currentUser;
-  if (!user) return null;
-  
-  const token = await user.getIdTokenResult();
-  return token.claims;
+  // Implement logic to get the current user's claims, possibly from a JWT token
 };

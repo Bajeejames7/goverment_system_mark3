@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -56,6 +56,24 @@ export default function Dashboard() {
         return <Overview />;
     }
   };
+
+  useEffect(() => {
+    // Only push dummy state for /dashboard root, don't forcibly redirect subpages
+    if (window.location.pathname === '/dashboard') {
+      window.history.pushState({ dashboard: true }, '', '/dashboard');
+      const hasToken = () =>
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('auth_token') ||
+        localStorage.getItem('token');
+      const handlePopState = (event: PopStateEvent) => {
+        if (hasToken()) {
+          window.history.pushState({ dashboard: true }, '', '/dashboard');
+        }
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">

@@ -86,7 +86,7 @@ export const folders = pgTable("folders", {
   name: text("name").notNull(),
   description: text("description"),
   department: text("department").notNull(),
-  createdBy: text("created_by").notNull(), // Firebase UID
+  createdBy: integer("created_by").references(() => users.id), // integer, not string
   createdAt: timestamp("created_at").defaultNow(),
   isActive: boolean("is_active").default(true),
 });
@@ -102,7 +102,7 @@ export const files = pgTable("files", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
   isActive: boolean("is_active").default(true),
   metadata: jsonb("metadata"),
-  folderId: integer("folder_id").references(() => folders.id),
+  folderId: integer("folder_id").references(() => folders.id), // RESTORED: files table has folderId column
 });
 
 export const letters = pgTable("letters", {
@@ -189,6 +189,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export const insertFolderSchema = createInsertSchema(folders).omit({
   id: true,
   createdAt: true,
+  createdBy: true, // Omit from frontend, backend will set
 });
 
 export const insertLetterSchema = createInsertSchema(letters).omit({
@@ -241,7 +242,7 @@ export const createFolderFormSchema = insertFolderSchema.extend({
   department: z.string().min(1, "Department is required"),
 });
 
-export const uploadLetterFormSchema = insertLetterSchema.extend({
+export const uploadLetterFormSchema = insertLetterSchema.omit({ uploadedBy: true }).extend({
   title: z.string().min(1, "Letter title is required"),
   reference: z.string().min(1, "Reference number is required"),
   folderId: z.number().min(1, "Please select a folder"),

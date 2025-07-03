@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,19 +9,64 @@ import { FileText, Download, Eye } from "lucide-react";
 import UploadLetterModal from "@/components/modals/UploadLetterModal";
 import DocumentPreview from "@/components/DocumentPreview";
 
-export default function Letters() {
+export default function Letters({ folderId }: { folderId?: string }) {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [selectedFolder, setSelectedFolder] = useState<string>("all");
+  const [selectedFolder, setSelectedFolder] = useState<string>(folderId || "all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchDate, setSearchDate] = useState<string>("");
 
+  // If folderId changes, update selectedFolder
+  useEffect(() => {
+    if (folderId) setSelectedFolder(folderId);
+  }, [folderId]);
+
+  // Fetch letters from API with filters
   const { data: letters, isLoading } = useQuery({
     queryKey: ["/api/letters", selectedFolder, selectedStatus, searchDate],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedFolder && selectedFolder !== "all") params.append("folderId", selectedFolder);
+      if (selectedStatus && selectedStatus !== "all") params.append("status", selectedStatus);
+      if (searchDate) params.append("date", searchDate);
+      const url = `/api/letters?${params.toString()}`;
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(url, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch letters");
+      return res.json();
+    },
   });
 
   const { data: folders } = useQuery({
     queryKey: ["/api/folders"],
+    queryFn: async () => {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch('/api/folders', {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch folders");
+      return res.json();
+    },
   });
+
+  useEffect(() => {
+    if (folderId) setSelectedFolder(folderId);
+    else {
+      // On mount, check for ?folder=... in URL and set selectedFolder
+      const params = new URLSearchParams(window.location.search);
+      const folderIdFromUrl = params.get('folder');
+      if (folderIdFromUrl) {
+        setSelectedFolder(folderIdFromUrl);
+      }
+    }
+  }, [folderId]);
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -43,30 +88,54 @@ export default function Letters() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Letters Management</h2>
-        <Button onClick={() => setUploadModalOpen(true)}>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {folderId ? (
+            <>
+              <span className="font-extrabold text-blue-700">
+                {folders?.find((f: any) => f.id === parseInt(folderId))?.name || ''}
+              </span>
+              <span className="ml-2 font-normal text-gray-700 dark:text-gray-300">Letters Management</span>
+            </>
+          ) : (
+            "Letters Management"
+          )}
+        </h2>
+        <Button 
+          onClick={() => setUploadModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow"
+        >
           <i className="fas fa-upload mr-2"></i>Upload Letter
         </Button>
       </div>
+
+      {/* Upload Letter Modal, pass folderId if present */}
+      <UploadLetterModal open={uploadModalOpen} onOpenChange={setUploadModalOpen} folderId={folderId} />
 
       {/* Filter Bar */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4">
-            <Select value={selectedFolder} onValueChange={setSelectedFolder}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Folders" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Folders</SelectItem>
-                {folders?.map((folder: any) => (
-                  <SelectItem key={folder.id} value={folder.id.toString()}>
-                    {folder.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
+            {folderId ? (
+              <Input
+                value={folders?.find((f: any) => f.id === parseInt(folderId))?.name || ''}
+                disabled
+                className="w-48"
+              />
+            ) : (
+              <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All Folders" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Folders</SelectItem>
+                  {folders?.map((folder: any) => (
+                    <SelectItem key={folder.id} value={folder.id.toString()}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="All Status" />
@@ -78,7 +147,6 @@ export default function Letters() {
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            
             <Input
               type="date"
               value={searchDate}
@@ -200,11 +268,6 @@ export default function Letters() {
           </Button>
         </div>
       )}
-
-      <UploadLetterModal 
-        open={uploadModalOpen}
-        onOpenChange={setUploadModalOpen}
-      />
     </div>
   );
 }

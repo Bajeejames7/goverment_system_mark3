@@ -117,7 +117,9 @@ export function registerAuthRoutes(app: Express) {
         name: user.name,
         department: user.department,
         position: user.position,
-        roles: user.userRoles?.map(ur => ur.role.name) || [],
+        roles: Array.isArray(user.userRoles)
+          ? user.userRoles.map(ur => ur.role && typeof ur.role === 'object' && 'name' in ur.role ? ur.role.name : undefined).filter(Boolean)
+          : [],
         canAssignLetters: user.canAssignLetters,
         emailVerified: user.emailVerified,
         lastLoginAt: user.lastLoginAt,
@@ -154,7 +156,8 @@ export function registerAuthRoutes(app: Express) {
       const hashedPassword = await hashPassword(userData.password);
 
       // Create user
-      const [newUser] = await db.insert(users).values({
+      let newUser: any;
+      const result = await db.insert(users).values({
         email: userData.email,
         name: userData.name,
         password: hashedPassword,
@@ -162,6 +165,13 @@ export function registerAuthRoutes(app: Express) {
         position: userData.position,
         createdBy: req.user.id,
       }).returning();
+      if (Array.isArray(result)) {
+        newUser = result[0];
+      } else if (result && typeof result === 'object' && 'id' in result) {
+        newUser = result;
+      } else {
+        throw new Error('Failed to create user');
+      }
 
       // Assign roles
       for (const roleName of userData.roles) {
@@ -201,5 +211,88 @@ export function registerAuthRoutes(app: Express) {
     // For JWT, we just need to clear the token on the client side
     // In a production environment, you might want to maintain a blacklist of tokens
     res.json({ message: 'Logged out successfully' });
+  });
+
+  // Email verification, forgot password, and reset password endpoints
+
+  // 1. Request email verification (send token)
+  app.post('/api/verify-email', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+      // Generate a simple token (in production, use a secure random token)
+      const token = generateToken({ userId: req.user.id, type: 'verify-email' });
+      // TODO: Send email with token link (simulate for now)
+      // Save token to user row (or a separate table if you want multiple tokens)
+      await db.update(users).set({ emailVerificationToken: token }).where(eq(users.id, req.user.id));
+      // Simulate email send
+      console.log(`Verification link: https://your-app.com/verify-email?token=${token}`);
+      res.json({ message: 'Verification email sent (simulated)', token });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to send verification email' });
+    }
+  });
+
+  // 2. Verify email with token
+  app.post('/api/verify-email/confirm', async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ message: 'Token required' });
+      let payload;
+      try {
+        payload = require('./auth').verifyToken(token);
+      } catch {
+        return res.status(400).json({ message: 'Invalid or expired token' });
+      }
+      if (payload.type !== 'verify-email') return res.status(400).json({ message: 'Invalid token type' });
+      // Find user by id and token
+      const [foundUser] = await db.select().from(users).where(and(eq(users.id, payload.userId), eq(users.emailVerificationToken, token)));
+      if (!foundUser) return res.status(400).json({ message: 'Invalid or expired token' });
+      // Mark email as verified
+      await db.update(users).set({ emailVerified: true, emailVerificationToken: null }).where(eq(users.id, foundUser.id));
+      res.json({ message: 'Email verified successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to verify email' });
+    }
+  });
+
+  // 3. Request password reset (send token)
+  app.post('/api/forgot-password', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: 'Email required' });
+      const [user] = await db.select().from(users).where(eq(users.email, email));
+      if (!user) return res.status(200).json({ message: 'If the email exists, a reset link has been sent.' });
+      const token = generateToken({ userId: user.id, type: 'reset-password' });
+      await db.update(users).set({ passwordResetToken: token }).where(eq(users.id, user.id));
+      // Simulate email send
+      console.log(`Reset link: https://your-app.com/reset-password?token=${token}`);
+      res.json({ message: 'Password reset email sent (simulated)', token });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to send password reset email' });
+    }
+  });
+
+  // 4. Reset password with token
+  app.post('/api/reset-password', async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) return res.status(400).json({ message: 'Token and new password required' });
+      let payload;
+      try {
+        payload = require('./auth').verifyToken(token);
+      } catch {
+        return res.status(400).json({ message: 'Invalid or expired token' });
+      }
+      if (payload.type !== 'reset-password') return res.status(400).json({ message: 'Invalid token type' });
+      // Find user by id and token
+      const [foundUser] = await db.select().from(users).where(and(eq(users.id, payload.userId), eq(users.passwordResetToken, token)));
+      if (!foundUser) return res.status(400).json({ message: 'Invalid or expired token' });
+      // Hash new password
+      const hashedPassword = await hashPassword(password);
+      await db.update(users).set({ password: hashedPassword, passwordResetToken: null }).where(eq(users.id, foundUser.id));
+      res.json({ message: 'Password reset successful' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to reset password' });
+    }
   });
 }

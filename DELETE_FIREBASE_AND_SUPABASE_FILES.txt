@@ -1,0 +1,6 @@
+The following files should be deleted:
+- client/src/lib/firebase.ts
+- server/firebase-admin.ts
+- server/supabase.ts
+
+Please delete these files from your project to remove all Firebase and Supabase code.

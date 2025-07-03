@@ -1,10 +1,17 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerAuthRoutes } from "./auth-routes-simple";
 import { setupVite, serveStatic, log } from "./vite";
+import { registerRoutes } from "./routes";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Prevent browser caching of login page
+app.use(['/login', '/api/login'], (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -40,7 +47,10 @@ app.use((req, res, next) => {
   // Register authentication routes using Aiven database
   const { registerAuthRoutes } = await import('./auth-routes-simple');
   registerAuthRoutes(app);
-  
+
+  // Register main API routes (folders, letters, etc.)
+  await registerRoutes(app);
+
   const { createServer } = await import('http');
   const server = createServer(app);
 
@@ -73,3 +83,17 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+
+// Add /check-auth endpoint for client-side login guard
+app.get('/check-auth', (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) return res.json({ authenticated: false });
+  const token = authHeader.replace('Bearer ', '');
+  try {
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+    res.json({ authenticated: true });
+  } catch {
+    res.json({ authenticated: false });
+  }
+});

@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Shield, Users, Archive, Search, Clock, ArrowRight, CheckCircle } from "lucide-react";
 import logoPath from "@assets/Republic_of_kenya_logo.jpeg";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function Welcome() {
   const [, navigate] = useLocation();
+  const { isDark, toggleTheme } = useTheme();
 
   const features = [
     {
@@ -58,8 +60,58 @@ export default function Welcome() {
     { step: 4, title: "Response & Archive", desc: "Completed documents are responded to and archived" }
   ];
 
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname === '/') {
+        navigate('/login');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Prevent navigation to /login or / from Welcome if already authenticated (any token)
+  useEffect(() => {
+    const hasToken = () =>
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('token');
+    if (hasToken()) {
+      window.location.replace('/dashboard');
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Theme Toggle Button */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-4 right-4 p-3 rounded-full 
+          ${isDark ? 'bg-white hover:bg-slate-100' : 'bg-slate-900 hover:bg-slate-800'}
+          shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-200 z-50`}
+        aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      >
+        {isDark ? (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5" fill="#facc15" />
+            <g stroke="#facc15">
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </g>
+          </svg>
+        ) : (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" fill="#fff" stroke="#fff" />
+          </svg>
+        )}
+      </button>
       {/* Header */}
       <header className="relative z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -114,13 +166,6 @@ export default function Welcome() {
               >
                 Login to System
                 <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg"
-                className="px-8 py-4 text-lg border-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300"
-              >
-                Learn More
               </Button>
             </div>
           </div>

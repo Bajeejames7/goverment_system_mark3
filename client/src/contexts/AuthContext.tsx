@@ -43,23 +43,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Check for existing JWT token and fetch user data
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
+      console.debug('AuthContext token:', token);
       if (token) {
         try {
-          const response = await apiRequest('/api/me', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.success && response.user) {
-            setUser(response.user);
-            setUserRole(response.user.position || 'user');
+          const response = await apiRequest('GET', '/api/me');
+          const data = await response.json();
+          console.debug('AuthContext /api/me response:', data);
+          if (data.success && data.user) {
+            setUser(data.user);
+            setUserRole(data.user.position || 'user');
+          } else {
+            setUser(null);
+            setUserRole(null);
           }
         } catch (error) {
           // Token is invalid, remove it
           localStorage.removeItem('token');
+          setUser(null);
+          setUserRole(null);
         }
+      } else {
+        setUser(null);
+        setUserRole(null);
       }
       setLoading(false);
     };
@@ -72,6 +77,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const isRegistry = userRole === 'registry' || userRole === 'registry_admin';
   const isOfficer = userRole === 'officer' || userRole === 'secretary';
   const canAddUsers = isAdmin || isRegistry;
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    let lastActivity = Date.now();
+
+    const resetTimer = () => {
+      lastActivity = Date.now();
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        if (Date.now() - lastActivity >= 10 * 60 * 1000) { // 10 minutes
+          import("@/lib/auth").then(mod => mod.logout());
+          window.location.href = "/login";
+        }
+      }, 10 * 60 * 1000);
+    };
+
+    const activityEvents = ["mousemove", "keydown", "mousedown", "touchstart", "scroll"];
+    activityEvents.forEach(event => window.addEventListener(event, resetTimer));
+    resetTimer();
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      activityEvents.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, []);
 
   return (
     <AuthContext.Provider

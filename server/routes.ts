@@ -6,18 +6,42 @@ import { insertUserSchema, insertFolderSchema, insertLetterSchema } from "@share
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
+import { files } from "@shared/schema";
+import fs from "fs";
+import { db } from "./db";
 
 
 
 // Configure multer for file uploads
 const upload = multer({
-  dest: 'uploads/',
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, "uploads/");
+    },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + "_" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    },
+  }),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for documents
+  },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.pdf', '.doc', '.docx', '.txt'];
-    const fileExt = file.originalname.toLowerCase().substr(file.originalname.lastIndexOf('.'));
-    cb(null, allowedTypes.includes(fileExt));
-  }
+    // Accept PDF and Word documents
+    const allowedTypes = /pdf|doc|docx/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const allowedMimeTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    const mimetype = allowedMimeTypes.includes(file.mimetype);
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Only PDF and Word documents are allowed"));
+    }
+  },
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -25,26 +49,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", requireAdmin, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
-      // Create Firebase user
-      const firebaseUser = await auth.createUser({
-        email: userData.email,
-        password: req.body.confirmPassword,
-        displayName: userData.name,
-        emailVerified: false,
-      });
-
-      // Set custom claims for role
-      await auth.setCustomUserClaims(firebaseUser.uid, {
-        role: userData.role,
-        department: userData.department,
-      });
 
       // Store user in our database
       const user = await storage.createUser({
         ...userData,
-        firebaseUid: firebaseUser.uid,
-        createdBy: req.user.uid,
+        createdBy: req.user.id,
       });
 
       // Log the action
@@ -52,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "create_user",
         entityType: "user",
         entityId: user.id.toString(),
-        userId: req.user.uid,
+        userId: req.user.id.toString(),
         details: { userEmail: user.email, userRole: user.role },
       });
 
@@ -64,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
-  app.get("/api/users", authenticateUser, requireAdmin, async (req, res) => {
+  app.get("/api/users", authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users.map(user => ({ ...user, password: undefined })));
@@ -73,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/users/:id", authenticateUser, async (req, res) => {
+  app.get("/api/users/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const id = parseInt(req.params.id);
       const user = await storage.getUser(id);
@@ -83,7 +92,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Users can only see their own profile unless they're admin
-      if (req.userProfile?.role !== 'admin' && user.firebaseUid !== req.user.uid) {
+      // (Assume req.user.roles is an array)
+      if (!req.user?.roles?.includes('admin') && user.createdBy !== req.user.id) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -94,7 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Folder routes
-  app.get("/api/folders", authenticateUser, async (req, res) => {
+  app.get("/api/folders", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const folders = await storage.getAllFolders();
       
@@ -112,23 +122,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/folders", authenticateUser, async (req, res) => {
+  app.post("/api/folders", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Unauthorized: missing user id" });
+      }
       const folderData = insertFolderSchema.parse(req.body);
-      
+      // Always set createdBy to the logged-in user (integer)
       const folder = await storage.createFolder({
         ...folderData,
-        createdBy: req.user.uid,
+        createdBy: req.user.id, // integer, not string
       });
-
       await storage.createAuditLog({
         action: "create_folder",
         entityType: "folder",
         entityId: folder.id.toString(),
-        userId: req.user.uid,
+        userId: req.user.id.toString(),
         details: { folderName: folder.name, department: folder.department },
       });
-
       res.json(folder);
     } catch (error) {
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create folder" });
@@ -136,7 +147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Letter routes
-  app.get("/api/letters", authenticateUser, async (req, res) => {
+  app.get("/api/letters", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { folderId, status, date } = req.query;
       let letters = await storage.getAllLetters();
@@ -153,14 +164,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (date) {
         const filterDate = new Date(date as string);
         letters = letters.filter(letter => 
-          new Date(letter.uploadedAt).toDateString() === filterDate.toDateString()
+          letter.uploadedAt && new Date(letter.uploadedAt).toDateString() === filterDate.toDateString()
         );
       }
 
       // Add folder info to each letter
       const lettersWithFolders = await Promise.all(
         letters.map(async (letter) => {
-          const folder = await storage.getFolder(letter.folderId);
+          const folder = letter.folderId ? await storage.getFolder(letter.folderId) : null;
           return { ...letter, folder };
         })
       );
@@ -171,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/letters/recent", authenticateUser, async (req, res) => {
+  app.get("/api/letters/recent", authenticateToken, async (req, res) => {
     try {
       const letters = await storage.getRecentLetters(10);
       res.json(letters);
@@ -180,80 +191,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Configure multer for file uploads
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-      fileSize: 50 * 1024 * 1024, // 50MB limit for documents
-    },
-    fileFilter: (req, file, cb) => {
-      // Accept PDF and Word documents
-      const allowedTypes = /pdf|doc|docx/;
-      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-      const allowedMimeTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ];
-      const mimetype = allowedMimeTypes.includes(file.mimetype);
-      
-      if (mimetype && extname) {
-        return cb(null, true);
-      } else {
-        cb(new Error('Only PDF and Word documents are allowed'));
-      }
-    }
-  });
-
-  app.post("/api/letters/upload", authenticateUser, upload.single('file'), async (req, res) => {
+  app.post("/api/letters/upload", authenticateToken, upload.single("file"), async (req: AuthenticatedRequest, res) => {
     try {
+      console.log("DEBUG upload", req.body, req.user, req.file);
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      // Parse and coerce types from req.body (all fields are strings from multer)
+      const folderId = parseInt(req.body.folderId);
       const letterData = insertLetterSchema.parse({
         ...req.body,
-        folderId: parseInt(req.body.folderId),
+        folderId,
+        uploadedBy: req.user?.id, // Should be set by auth middleware
       });
-
-      let fileUrl = null;
-      let fileName = null;
-
-      // Upload file to local storage if provided (Firebase Storage can be added later)
-      if (req.file) {
-        try {
-          const timestamp = Date.now();
-          const fileExtension = path.extname(req.file.originalname);
-          const storageFileName = `${timestamp}_${req.file.originalname}`;
-          
-          // For now, store file information in database
-          // File URLs will be generated when Firebase Storage is properly configured
-          fileUrl = `/uploads/${storageFileName}`;
-          fileName = req.file.originalname;
-        } catch (uploadError) {
-          console.error('File processing error:', uploadError);
-          return res.status(500).json({ message: "Failed to process file" });
-        }
+      // Save file metadata in files table
+      const fileRecord = await db.insert(files).values({
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        path: req.file.path,
+        uploadedBy: req.user?.id,
+        isActive: true,
+        metadata: {},
+        folderId: letterData.folderId, // ADDED: associate file with folder
+      }).returning();
+      const fileId = fileRecord[0]?.id;
+      if (!fileId) {
+        return res.status(500).json({ message: "Failed to save file metadata" });
       }
-
+      // Create letter referencing fileId
       const letter = await storage.createLetter({
         ...letterData,
-        uploadedBy: req.user.uid,
-        fileName,
-        fileUrl,
+        uploadedBy: req.user?.id,
+        fileId,
       });
-
       await storage.createAuditLog({
         action: "upload_letter",
         entityType: "letter",
         entityId: letter.id.toString(),
-        userId: req.user.uid,
+        userId: req.user?.id?.toString(),
         details: { letterTitle: letter.title, reference: letter.reference },
       });
-
-      res.json(letter);
+      res.json({ success: true, letter });
     } catch (error) {
+      console.error("Upload error:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to upload letter" });
     }
   });
 
-  app.patch("/api/letters/:id/verify", authenticateUser, async (req, res) => {
+  app.patch("/api/letters/:id/verify", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status, notes } = req.body;
@@ -264,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const letter = await storage.updateLetter(id, {
         status,
-        verifiedBy: req.user.uid,
+        verifiedBy: req.user.id,
         verifiedAt: new Date(),
       });
 
@@ -276,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "verify_letter",
         entityType: "letter",
         entityId: letter.id.toString(),
-        userId: req.user.uid,
+        userId: req.user.id.toString(),
         details: { status, notes, letterTitle: letter.title },
       });
 
@@ -287,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stats route
-  app.get("/api/stats", authenticateUser, async (req, res) => {
+  app.get("/api/stats", authenticateToken, async (req, res) => {
     try {
       const stats = await storage.getStats();
       res.json(stats);
@@ -297,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Audit logs route
-  app.get("/api/audit-logs/recent", authenticateUser, async (req, res) => {
+  app.get("/api/audit-logs/recent", authenticateToken, async (req, res) => {
     try {
       const logs = await storage.getRecentAuditLogs(20);
       res.json(logs);

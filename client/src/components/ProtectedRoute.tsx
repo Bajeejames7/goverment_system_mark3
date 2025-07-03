@@ -24,12 +24,10 @@ export default function ProtectedRoute({ children, requiredRoles, adminOnly }: P
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('auth_token');
-      
       if (!token) {
-        setLocation("/login");
+        window.location.replace("/login");
         return;
       }
-
       try {
         const response = await fetch('/api/me', {
           headers: {
@@ -37,20 +35,23 @@ export default function ProtectedRoute({ children, requiredRoles, adminOnly }: P
             'Content-Type': 'application/json',
           },
         });
-
         if (response.ok) {
           const userData = await response.json();
           setUser(userData);
+          // Prevent access to /login if already authenticated
+          if (window.location.pathname === '/login') {
+            window.location.replace('/dashboard');
+          }
         } else {
           localStorage.removeItem('auth_token');
           localStorage.removeItem('user_data');
-          setLocation("/login");
+          window.location.replace("/login");
         }
       } catch (error) {
         console.error('Auth check failed:', error);
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user_data');
-        setLocation("/login");
+        window.location.replace("/login");
       } finally {
         setLoading(false);
       }

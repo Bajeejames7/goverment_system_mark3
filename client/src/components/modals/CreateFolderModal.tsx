@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useState } from "react";
 
 interface CreateFolderModalProps {
   open: boolean;
@@ -22,18 +23,20 @@ type CreateFolderFormData = z.infer<typeof createFolderFormSchema>;
 export default function CreateFolderModal({ open, onOpenChange }: CreateFolderModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+  const [submitDebug, setSubmitDebug] = useState<string>("");
+
   const form = useForm<CreateFolderFormData>({
     resolver: zodResolver(createFolderFormSchema),
     defaultValues: {
       name: "",
       description: "",
-      department: "",
+      department: "Industry Department", // always default
     },
   });
 
   const createFolderMutation = useMutation({
     mutationFn: async (data: CreateFolderFormData) => {
+      setSubmitDebug("Submitting: " + JSON.stringify(data));
       const response = await apiRequest("POST", "/api/folders", data);
       return response.json();
     },
@@ -45,27 +48,22 @@ export default function CreateFolderModal({ open, onOpenChange }: CreateFolderMo
       queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
       onOpenChange(false);
       form.reset();
+      setSubmitDebug("Success: Folder created");
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Folder creation unsuccessful.",
         variant: "destructive",
       });
+      setSubmitDebug("Error: " + error.message);
     },
   });
 
   const onSubmit = (data: CreateFolderFormData) => {
-    createFolderMutation.mutate(data);
+    setSubmitDebug("onSubmit called: " + JSON.stringify(data));
+    createFolderMutation.mutate({ ...data, department: "Industry Department" }); // always submit as Industry Department
   };
-
-  const departments = [
-    "Industry Department",
-    "Policy & Regulations",
-    "Budget & Finance",
-    "Administration",
-    "Legal Affairs",
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -73,7 +71,12 @@ export default function CreateFolderModal({ open, onOpenChange }: CreateFolderMo
         <DialogHeader>
           <DialogTitle>Create New Folder</DialogTitle>
         </DialogHeader>
-        
+        {/* Debug info */}
+        <div className="mb-2 p-2 bg-yellow-100 text-yellow-800 rounded text-xs">
+          <div>Form State: {JSON.stringify(form.getValues())}</div>
+          <div>Errors: {JSON.stringify(form.formState.errors)}</div>
+          <div>{submitDebug}</div>
+        </div>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <Label htmlFor="name">Folder Name</Label>
@@ -87,27 +90,10 @@ export default function CreateFolderModal({ open, onOpenChange }: CreateFolderMo
               <p className="text-sm text-red-600 mt-1">{form.formState.errors.name.message}</p>
             )}
           </div>
-          
-          <div>
-            <Label htmlFor="department">Department</Label>
-            <Select 
-              value={form.watch("department")} 
-              onValueChange={(value) => form.setValue("department", value)}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select department" />
-              </SelectTrigger>
-              <SelectContent>
-                {departments.map((dept) => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.department && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.department.message}</p>
-            )}
+          <div style={{ display: 'none' }}>
+            {/* Hide department field, but keep it in the form for backend compatibility */}
+            <Input id="department" value="Industry Department" readOnly {...form.register("department")}/>
           </div>
-          
           <div>
             <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
@@ -117,23 +103,13 @@ export default function CreateFolderModal({ open, onOpenChange }: CreateFolderMo
               placeholder="Describe the purpose of this folder"
               rows={3}
             />
+            {form.formState.errors.description && (
+              <p className="text-sm text-red-600 mt-1">{form.formState.errors.description.message}</p>
+            )}
           </div>
-          
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={createFolderMutation.isPending}
-            >
-              {createFolderMutation.isPending ? "Creating..." : "Create Folder"}
-            </Button>
-          </div>
+          <Button type="submit" className="w-full" disabled={createFolderMutation.isPending}>
+            {createFolderMutation.isPending ? "Creating..." : "Create Folder"}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>

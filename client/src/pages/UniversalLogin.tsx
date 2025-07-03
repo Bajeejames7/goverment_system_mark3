@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -64,15 +64,15 @@ export default function UniversalLogin() {
 
       if (response.ok && result.success) {
         localStorage.setItem('auth_token', result.token);
-        
-        // Show success notification
+        localStorage.setItem('token', result.token); // Store under 'token' for app auth
         toast({
           title: "Login Successful",
           description: "Welcome to the RMU System",
           duration: 3000,
         });
-        
-        setLocation('/dashboard');
+        // Use replace so /login is not in the history stack
+        window.location.replace('/dashboard');
+        return;
       } else {
         setError(result.message || 'Invalid credentials. Please try again.');
       }
@@ -82,6 +82,44 @@ export default function UniversalLogin() {
       setIsLoading(false);
     }
   };
+
+  // Always redirect to welcome page on back navigation from login
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname === '/login') {
+        window.location.replace('/');
+      }
+    };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Prevent navigation to /login if already authenticated (any token)
+  useEffect(() => {
+    const hasToken = () =>
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('token');
+    if (hasToken()) {
+      window.location.replace('/dashboard');
+    }
+  }, []);
+
+  // Client-side redirect guard: if user is authenticated, redirect to dashboard
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    fetch('/check-auth', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          window.location.replace('/dashboard');
+        }
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
@@ -96,13 +134,16 @@ export default function UniversalLogin() {
         variant="ghost"
         size="sm"
         onClick={toggleTheme}
-        className="fixed top-6 right-6 z-20 p-3 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg hover:bg-white dark:hover:bg-slate-800 shadow-xl border border-white/20 dark:border-slate-700/20"
-        aria-label="Toggle theme"
+        className={`fixed top-6 right-6 z-20 p-3 rounded-full 
+          ${isDark ? 'bg-white hover:bg-slate-100' : 'bg-slate-900 hover:bg-slate-800'}
+          backdrop-blur-lg shadow-xl border border-white/20 dark:border-slate-700/20`}
+        aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        title={isDark ? "Switch to light mode" : "Switch to dark mode"}
       >
         {isDark ? (
           <Sun className="h-5 w-5 text-yellow-500" />
         ) : (
-          <Moon className="h-5 w-5 text-slate-600" />
+          <Moon className="h-5 w-5 text-white" />
         )}
       </Button>
 

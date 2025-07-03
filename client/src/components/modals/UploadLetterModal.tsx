@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { uploadLetterFormSchema } from "@shared/schema";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,16 +13,17 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { auth } from "@/lib/firebase";
 
 interface UploadLetterModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  folderId?: string;
 }
 
 type UploadLetterFormData = z.infer<typeof uploadLetterFormSchema>;
 
-export default function UploadLetterModal({ open, onOpenChange }: UploadLetterModalProps) {
+export default function UploadLetterModal({ open, onOpenChange, folderId }: UploadLetterModalProps) {
+  console.log('DEBUG: UploadLetterModal rendered');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -33,9 +34,14 @@ export default function UploadLetterModal({ open, onOpenChange }: UploadLetterMo
       title: "",
       reference: "",
       content: "",
-      folderId: 0,
+      folderId: folderId ? parseInt(folderId) : 0,
     },
   });
+
+  // If folderId changes, update form value
+  useEffect(() => {
+    if (folderId) form.setValue("folderId", parseInt(folderId));
+  }, [folderId]);
 
   const { data: folders } = useQuery({
     queryKey: ["/api/folders"],
@@ -52,37 +58,35 @@ export default function UploadLetterModal({ open, onOpenChange }: UploadLetterMo
       if (selectedFile) {
         formData.append("file", selectedFile);
       }
-      
-      // Get Firebase auth token
-      const token = await auth.currentUser?.getIdToken();
-      
+      const token = localStorage.getItem('auth_token');
       const response = await fetch("/api/letters/upload", {
         method: "POST",
         body: formData,
+        credentials: "include",
         headers: {
           ...(token && { Authorization: `Bearer ${token}` }),
         },
-        credentials: "include",
       });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Failed to upload letter");
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to upload letter");
       }
-      
-      return response.json();
+      return result.letter;
     },
     onSuccess: () => {
+      console.log("Upload success");
       toast({
         title: "Success",
         description: "Letter uploaded successfully.",
+        // variant: "success", // keep only valid variants
       });
       queryClient.invalidateQueries({ queryKey: ["/api/letters"] });
-      onOpenChange(false);
+      // onOpenChange(false); // TEMP: comment out so modal stays open for debugging
       form.reset();
       setSelectedFile(null);
     },
     onError: (error: Error) => {
+      console.log("Upload error", error);
       toast({
         title: "Error",
         description: error.message,
@@ -92,6 +96,15 @@ export default function UploadLetterModal({ open, onOpenChange }: UploadLetterMo
   });
 
   const onSubmit = (data: UploadLetterFormData) => {
+    console.log("DEBUG: onSubmit called", data, selectedFile);
+    if (!selectedFile) {
+      toast({
+        title: "File Required",
+        description: "Please attach a PDF or Word document before uploading.",
+        variant: "destructive",
+      });
+      return;
+    }
     uploadLetterMutation.mutate(data);
   };
 
@@ -107,9 +120,14 @@ export default function UploadLetterModal({ open, onOpenChange }: UploadLetterMo
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>Upload Letter</DialogTitle>
+          <DialogDescription>
+            Upload a PDF or Word document letter to the selected folder.
+          </DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form 
+          onSubmit={form.handleSubmit(onSubmit, (errors) => { console.log('DEBUG: validation errors', errors); })} 
+          className="space-y-4"
+        >
           <div>
             <Label htmlFor="title">Letter Title</Label>
             <Input
@@ -138,21 +156,30 @@ export default function UploadLetterModal({ open, onOpenChange }: UploadLetterMo
           
           <div>
             <Label htmlFor="folderId">Folder</Label>
-            <Select 
-              value={form.watch("folderId").toString()} 
-              onValueChange={(value) => form.setValue("folderId", parseInt(value))}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select folder" />
-              </SelectTrigger>
-              <SelectContent>
-                {folders?.map((folder: any) => (
-                  <SelectItem key={folder.id} value={folder.id.toString()}>
-                    {folder.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {folderId ? (
+              <Input
+                id="folderId"
+                value={folders?.find((f: any) => f.id === parseInt(folderId))?.name || ''}
+                disabled
+                className="mt-1"
+              />
+            ) : (
+              <Select 
+                value={form.watch("folderId").toString()} 
+                onValueChange={(value) => form.setValue("folderId", parseInt(value))}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select folder" />
+                </SelectTrigger>
+                <SelectContent>
+                  {folders?.map((folder: any) => (
+                    <SelectItem key={folder.id} value={folder.id.toString()}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {form.formState.errors.folderId && (
               <p className="text-sm text-red-600 mt-1">{form.formState.errors.folderId.message}</p>
             )}
@@ -210,12 +237,17 @@ export default function UploadLetterModal({ open, onOpenChange }: UploadLetterMo
             </Button>
             <Button 
               type="submit" 
-              disabled={uploadLetterMutation.isPending}
+              disabled={uploadLetterMutation.isPending || !selectedFile}
             >
               {uploadLetterMutation.isPending ? "Uploading..." : "Upload Letter"}
             </Button>
+            {uploadLetterMutation.isError && (
+              <span className="ml-4 text-red-600 font-semibold">Upload failed. Please try again.</span>
+            )}
           </div>
         </form>
+        {/* DEBUG BUTTON: Remove after testing */}
+        <Button type="button" onClick={() => console.log('DEBUG: Modal is interactive')}>Debug Log</Button>
       </DialogContent>
     </Dialog>
   );

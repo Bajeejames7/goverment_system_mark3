@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useLocation } from "wouter";
 import { loginWithEmail } from "@/lib/auth";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,6 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const { type } = useParams() as { type: string };
-  const { firebaseUser, loading } = useAuth();
   const { toast } = useToast();
   const { isDark, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
@@ -37,25 +35,6 @@ export default function Login() {
       rememberMe: false,
     },
   });
-
-  // Use useEffect to handle navigation to prevent state update during render
-  useEffect(() => {
-    if (firebaseUser) {
-      setLocation("/dashboard");
-    }
-  }, [firebaseUser, setLocation]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (firebaseUser) {
-    return null;
-  }
 
   const getLoginConfig = (type: string) => {
     const configs = {

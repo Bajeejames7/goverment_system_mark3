@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FaFolderPlus, FaArrowUp, FaUserPlus, FaUserMinus, FaCheckCircle, FaEdit, FaInfoCircle } from "react-icons/fa";
 
 export default function Overview() {
   const { data: stats } = useQuery({
@@ -30,14 +31,24 @@ export default function Overview() {
     return badges[status as keyof typeof badges] || badges.pending;
   };
 
+  // Creative icon mapping for log actions using react-icons
   const getActivityIcon = (action: string) => {
-    const icons = {
-      verify: "fas fa-check text-green-600",
-      upload: "fas fa-upload text-blue-600",
-      create: "fas fa-user-plus text-purple-600",
-      update: "fas fa-edit text-orange-600",
-    };
-    return icons[action as keyof typeof icons] || "fas fa-info-circle text-gray-600";
+    switch (action) {
+      case 'create_folder':
+        return <FaFolderPlus className="text-blue-600 text-lg" />;
+      case 'upload_letter':
+        return <FaArrowUp className="text-green-600 text-lg" />;
+      case 'create_user':
+        return <FaUserPlus className="text-purple-600 text-lg" />;
+      case 'delete_user':
+        return <FaUserMinus className="text-red-600 text-lg" />;
+      case 'verify':
+        return <FaCheckCircle className="text-green-600 text-lg" />;
+      case 'update':
+        return <FaEdit className="text-orange-600 text-lg" />;
+      default:
+        return <FaInfoCircle className="text-gray-600 text-lg" />;
+    }
   };
 
   return (
@@ -47,8 +58,8 @@ export default function Overview() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <i className="fas fa-folder text-blue-600 text-xl"></i>
+              <div className="p-3 bg-blue-700 dark:bg-blue-900 rounded-lg">
+                <i className="fas fa-folder text-blue-100 text-xl"></i>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Folders</p>
@@ -61,8 +72,8 @@ export default function Overview() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <i className="fas fa-envelope text-green-600 text-xl"></i>
+              <div className="p-3 bg-green-700 dark:bg-green-900 rounded-lg">
+                <i className="fas fa-envelope text-green-100 text-xl"></i>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Letters</p>
@@ -75,8 +86,8 @@ export default function Overview() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                <i className="fas fa-clock text-yellow-600 text-xl"></i>
+              <div className="p-3 bg-yellow-600 dark:bg-yellow-900 rounded-lg">
+                <i className="fas fa-clock text-yellow-100 text-xl"></i>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Verification</p>
@@ -89,8 +100,8 @@ export default function Overview() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                <i className="fas fa-users text-purple-600 text-xl"></i>
+              <div className="p-3 bg-purple-700 dark:bg-purple-900 rounded-lg">
+                <i className="fas fa-users text-purple-100 text-xl"></i>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Users</p>
@@ -147,8 +158,8 @@ export default function Overview() {
               {activityLogs?.length > 0 ? (
                 activityLogs.map((log: any) => (
                   <div key={log.id} className="flex items-start">
-                    <div className="h-8 w-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                      <i className={`${getActivityIcon(log.action)} text-sm`}></i>
+                    <div className="h-8 w-8 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                      {getActivityIcon(log.action)}
                     </div>
                     <div className="ml-3">
                       <p className="text-sm text-gray-900 dark:text-white">{log.details?.description || log.action}</p>

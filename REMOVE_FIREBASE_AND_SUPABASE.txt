@@ -1,0 +1,13 @@
+Remove the following files and all related code:
+
+Client:
+- client/src/lib/firebase.ts
+- All firebase-related imports and usage in client/src/lib/auth.ts
+- All firebaseUser references in client/src/pages/Login.tsx
+
+Server:
+- server/firebase-admin.ts
+- server/supabase.ts
+- All firebase-related code in server/routes.ts and server/storage.ts
+
+After removal, refactor authentication and storage to use only Aiven or your preferred provider.
