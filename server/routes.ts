@@ -199,6 +199,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Delete user endpoint
+  app.delete("/api/users/:id", authenticateToken, requireAdmin, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      // Check if user is trying to delete themselves
+      if (req.user!.id === id) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
+      }
+
+      const user = await storage.deleteUser(id);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "delete_user",
+        entityType: "user",
+        entityId: user.id.toString(),
+        userId: req.user!.id.toString(),
+        details: { 
+          userEmail: user.email, 
+          userDepartment: user.department,
+          deletedByAdmin: req.user!.email 
+        },
+      });
+
+      res.json({ success: true, message: "User deleted successfully" });
+    } catch (error) {
+      sendErrorResponse(res, error, "Failed to delete user");
+    }
+  }));
+
   // Folder routes
   app.get("/api/folders", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {

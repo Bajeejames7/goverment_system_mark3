@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plus, UserPlus, Shield, Eye, Users, AlertCircle } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, UserPlus, Shield, Eye, Users, AlertCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 import RegisterUserModal from "@/components/modals/RegisterUserModal";
 import { User } from "@shared/schema";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,8 +19,10 @@ interface UserWithRoles extends Omit<User, 'password'> {
 export default function UserManagement() {
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
   const { user, userRole } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: users = [], isLoading } = useQuery<UserWithRoles[]>({
+  const { data: users = [], isLoading, refetch } = useQuery<UserWithRoles[]>({
     queryKey: ['/api/users'],
   });
 
@@ -84,6 +87,44 @@ export default function UserManagement() {
         Inactive
       </Badge>
     );
+  };
+
+  // Delete user function
+  const deleteUser = async (userId: number, userName: string) => {
+    if (!window.confirm(`Are you sure you want to delete user ${userName}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token'); // Get the auth token
+      
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // Include the auth token
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete user');
+      }
+
+      // Refetch users to update the list
+      refetch();
+
+      toast({
+        title: "Success",
+        description: `User ${userName} has been deleted successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete user",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -227,12 +268,13 @@ export default function UserManagement() {
                 <TableHead>Position</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
+                {canAddUsers && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <TableCell colSpan={canAddUsers ? 8 : 7} className="text-center py-8 text-gray-500 dark:text-gray-400">
                     No users found. Create your first user to get started.
                   </TableCell>
                 </TableRow>
@@ -255,6 +297,18 @@ export default function UserManagement() {
                     <TableCell className="text-gray-600 dark:text-gray-300">
                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
                     </TableCell>
+                    {canAddUsers && (
+                      <TableCell>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteUser(user.id, user.name)}
+                          disabled={user.id === Number(localStorage.getItem('userId'))}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}

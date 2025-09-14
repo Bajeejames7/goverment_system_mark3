@@ -49,6 +49,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<User | undefined>;
   getAllUsers(): Promise<UserWithRoles[]>;
   getFolder(id: number): Promise<Folder | undefined>;
   getFoldersByDepartment(department: string): Promise<Folder[]>;
@@ -167,6 +168,33 @@ export const storage: IStorage = {
     }
   },
   
+  async deleteUser(id: number) {
+    try {
+      if (!id || id <= 0) {
+        throw new StorageError('Invalid user ID provided', 'INVALID_ID');
+      }
+
+      // First delete user roles
+      await db.delete(userRoles).where(eq(userRoles.userId, id));
+
+      // Then delete the user itself
+      const [deleted] = await db.update(users)
+        .set({ isActive: false })
+        .where(eq(users.id, id))
+        .returning();
+
+      if (!deleted) {
+        throw new NotFoundError('User', id);
+      }
+
+      return deleted;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      if (error instanceof NotFoundError) throw error;
+      handleDbError(error, 'deleteUser');
+    }
+  },
+
   async getAllUsers() {
     try {
       // Get all active users with their roles
