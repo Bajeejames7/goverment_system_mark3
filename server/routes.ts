@@ -344,14 +344,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Letter routes
   app.get("/api/letters", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
-      // Add cache headers for better performance
+      // Remove cache headers to ensure fresh data
       res.set({
-        'Cache-Control': 'public, max-age=60', // Cache for 1 minute
-        'Pragma': 'cache',
-        'Expires': new Date(Date.now() + 60000).toUTCString()
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       });
       
-      const letters = await storage.getAllLetters();
+      // Get query parameters
+      const { folderId, date } = req.query;
+      
+      console.log('API /api/letters called with params:', { folderId, date });
+      console.log('Type of folderId:', typeof folderId);
+      console.log('Value of folderId:', folderId);
+      
+      // Fetch letters based on filters
+      let letters: any[] = [];
+      if (folderId) {
+        // If folderId is provided, fetch only letters in that folder
+        const folderIdNum = parseInt(folderId as string);
+        console.log('Parsed folderIdNum:', folderIdNum);
+        console.log('IsNaN check:', isNaN(folderIdNum));
+        if (!isNaN(folderIdNum)) {
+          letters = await storage.getLettersByFolder(folderIdNum);
+          console.log(`Found ${letters.length} letters for folder ${folderIdNum}`);
+        } else {
+          console.log('Invalid folderId, returning empty array');
+          letters = []; // Invalid folderId, return empty array
+        }
+      } else {
+        console.log('No folderId provided, fetching all letters');
+        // If no folderId provided, fetch all letters
+        letters = await storage.getAllLetters();
+        console.log(`Found ${letters.length} total letters`);
+      }
+      
+      // Apply date filter if provided
+      if (date && Array.isArray(letters)) {
+        const targetDate = new Date(date as string);
+        targetDate.setHours(0, 0, 0, 0); // Set to start of day
+        
+        letters = letters.filter(letter => {
+          const letterDate = new Date(letter.uploadedAt);
+          letterDate.setHours(0, 0, 0, 0); // Set to start of day
+          return letterDate.getTime() === targetDate.getTime();
+        });
+      }
 
       // Add folder and file info to each letter
       const lettersWithFoldersAndFiles = await Promise.all(

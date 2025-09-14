@@ -19,6 +19,7 @@ export default function FolderLetters({ folderId, onUpload }: { folderId: string
       if (folderId) params.append("folderId", folderId);
       if (searchDate) params.append("date", searchDate);
       const url = `/api/letters?${params.toString()}`;
+      console.log('Fetching letters with URL:', url); // Debug log
       const token = localStorage.getItem('auth_token');
       const res = await fetch(url, {
         headers: {
@@ -27,7 +28,9 @@ export default function FolderLetters({ folderId, onUpload }: { folderId: string
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch letters");
-      return res.json();
+      const data = await res.json();
+      console.log('Received letters data:', data); // Debug log
+      return data;
     },
   });
 
