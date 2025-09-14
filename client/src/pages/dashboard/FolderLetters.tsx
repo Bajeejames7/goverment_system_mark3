@@ -160,6 +160,38 @@ export default function FolderLetters({ folderId, onUpload }: { folderId: string
                           <span className="sr-only">Download</span>
                         </Button>
                       )}
+                      {/* Delete Button */}
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={async () => {
+                          if (confirm(`Are you sure you want to delete the letter "${letter.title}"?`)) {
+                            try {
+                              const token = localStorage.getItem('auth_token');
+                              const response = await fetch(`/api/letters/${letter.id}`, {
+                                method: 'DELETE',
+                                headers: {
+                                  ...(token && { Authorization: `Bearer ${token}` }),
+                                },
+                              });
+                              
+                              if (response.ok) {
+                                // Refresh the letters list
+                                refetch();
+                              } else {
+                                const error = await response.json();
+                                alert(`Failed to delete letter: ${error.message || 'Unknown error'}`);
+                              }
+                            } catch (error) {
+                              console.error('Error deleting letter:', error);
+                              alert('Failed to delete letter. Please try again.');
+                            }
+                          }
+                        }}
+                        className="h-8 px-2 gap-1"
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </td>
                 </tr>

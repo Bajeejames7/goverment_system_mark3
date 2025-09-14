@@ -277,6 +277,42 @@ export default function Letters({ folderId }: { folderId?: string }) {
                               Download
                             </Button>
                           )}
+                          {/* Delete Button */}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                              if (confirm(`Are you sure you want to delete the letter "${letter.title}"?`)) {
+                                try {
+                                  const token = localStorage.getItem('auth_token');
+                                  const response = await fetch(`/api/letters/${letter.id}`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                      ...(token && { Authorization: `Bearer ${token}` }),
+                                    },
+                                  });
+                                  
+                                  if (response.ok) {
+                                    // Refresh the letters list
+                                    window.location.reload();
+                                  } else if (response.status === 404) {
+                                    alert(`The letter "${letter.title}" was not found. It may have already been deleted.`);
+                                    // Refresh the letters list to show the current state
+                                    window.location.reload();
+                                  } else {
+                                    const errorData = await response.json().catch(() => ({}));
+                                    const errorMessage = errorData.message || response.statusText || 'Unknown error';
+                                    alert(`Failed to delete letter: ${errorMessage}`);
+                                  }
+                                } catch (error) {
+                                  console.error('Error deleting letter:', error);
+                                  alert(`Failed to delete letter: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                                }
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
                         </div>
                       </td>
                     </tr>

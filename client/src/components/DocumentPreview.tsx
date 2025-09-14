@@ -20,6 +20,8 @@ export default function DocumentPreview({
   children 
 }: DocumentPreviewProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   // Memoize file extension calculation
   const fileExtension = useMemo(() => {
@@ -64,6 +66,57 @@ export default function DocumentPreview({
   const isPDF = fileExtension === 'pdf';
 
   const handleDownload = useCallback(() => {
+    const token = localStorage.getItem('auth_token');
+    
+    // Use our dedicated download endpoint with token in header
+    if (fileUrl.startsWith('/api/files/') && fileUrl.endsWith('/download') && token) {
+      // Create a temporary link that opens in a new window
+      const downloadUrl = `${window.location.origin}${fileUrl}`;
+      
+      // Create a hidden iframe to trigger the download with authentication
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      
+      // Create a form in the iframe to submit with the token
+      const form = iframe.contentDocument.createElement('form');
+      form.method = 'GET';
+      form.action = downloadUrl;
+      
+      // Add token as a header via a meta tag approach won't work,
+      // so we'll open in a new window with proper authentication
+      document.body.removeChild(iframe);
+      
+      // Use fetch API to download with authentication
+      fetch(downloadUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(response => response.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error => {
+        console.error('Download failed:', error);
+        // Fallback to opening in new window
+        const newWindow = window.open(downloadUrl, '_blank');
+        if (!newWindow) {
+          // If popup blocked, show error
+          alert('Please allow popups to download the file');
+        }
+      });
+      return;
+    }
+    
+    // Fallback for other URLs
     const link = document.createElement('a');
     link.href = fileUrl;
     link.download = fileName;
@@ -73,17 +126,96 @@ export default function DocumentPreview({
     document.body.removeChild(link);
   }, [fileUrl, fileName]);
 
+  // Load preview content when dialog opens
+  const loadPreview = useCallback(async () => {
+    if (!isPDF || !fileUrl) return;
+    
+    setIsLoadingPreview(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      // Use our dedicated preview endpoint
+      let previewUrl = fileUrl;
+      if (fileUrl.endsWith('/download')) {
+        // Replace /download with /preview
+        previewUrl = fileUrl.replace(/\/download$/, '/preview');
+      }
+      
+      // Fetch the PDF with authentication
+      const response = await fetch(previewUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load preview: ${response.status} ${response.statusText}`);
+      }
+      
+      // Convert to blob URL for iframe
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setPreviewContent(blobUrl);
+    } catch (error) {
+      console.error('Error loading preview:', error);
+      setPreviewContent(null);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  }, [fileUrl, isPDF]);
+
+  // Clean up blob URL when dialog closes
+  const handleDialogChange = useCallback((open: boolean) => {
+    setIsPreviewOpen(open);
+    if (!open && previewContent) {
+      URL.revokeObjectURL(previewContent);
+      setPreviewContent(null);
+    }
+    if (open && isPDF) {
+      loadPreview();
+    }
+  }, [isPDF, loadPreview, previewContent]);
+
   // Memoize preview content to prevent unnecessary re-renders
   const PreviewContent = useMemo(() => {
     if (isPDF) {
+      if (isLoadingPreview) {
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        );
+      }
+      
+      if (previewContent) {
+        return (
+          <div className="w-full h-full bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+            <iframe
+              src={previewContent}
+              className="w-full h-full border-0"
+              title={`Preview of ${fileName}`}
+              loading="lazy"
+            />
+          </div>
+        );
+      }
+      
       return (
-        <div className="w-full h-full bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-          <iframe
-            src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-            className="w-full h-full border-0"
-            title={`Preview of ${fileName}`}
-            loading="lazy"
-          />
+        <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            Preview Unavailable
+          </h3>
+          <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md">
+            Unable to load preview. Please try downloading the file instead.
+          </p>
+          <Button onClick={handleDownload} className="bg-blue-600 hover:bg-blue-700">
+            <Download className="w-4 h-4 mr-2" />
+            Download File
+          </Button>
         </div>
       );
     } else {
@@ -104,12 +236,12 @@ export default function DocumentPreview({
         </div>
       );
     }
-  }, [isPDF, fileUrl, fileName, handleDownload]);
+  }, [isPDF, isLoadingPreview, previewContent, fileName, handleDownload]);
 
   return (
     <>
       {children ? (
-        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <Dialog open={isPreviewOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
             {children}
           </DialogTrigger>
@@ -166,7 +298,7 @@ export default function DocumentPreview({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsPreviewOpen(true)}
+                onClick={() => handleDialogChange(true)}
                 className="gap-2"
               >
                 <Eye className="w-4 h-4" />

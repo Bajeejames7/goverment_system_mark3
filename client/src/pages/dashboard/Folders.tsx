@@ -77,13 +77,29 @@ export default function Folders() {
                       onClick={async () => {
                         if (
                           confirm(
-                            `Are you sure you want to delete folder '${folder.name}'?`
+                            `Are you sure you want to delete folder '${folder.name}'? This will not delete the letters inside.`
                           )
                         ) {
-                          await fetch(`/api/folders/${folder.id}`, {
-                            method: "DELETE",
-                          });
-                          window.location.reload();
+                          try {
+                            const token = localStorage.getItem("auth_token");
+                            const response = await fetch(`/api/folders/${folder.id}`, {
+                              method: "DELETE",
+                              headers: {
+                                ...(token && { Authorization: `Bearer ${token}` }),
+                              },
+                            });
+                            
+                            if (response.ok) {
+                              window.location.reload();
+                            } else {
+                              const errorData = await response.json().catch(() => ({}));
+                              const errorMessage = errorData.message || response.statusText || 'Unknown error';
+                              alert(`Failed to delete folder: ${errorMessage}`);
+                            }
+                          } catch (error) {
+                            console.error('Error deleting folder:', error);
+                            alert(`Failed to delete folder: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                          }
                         }
                       }}
                     >
@@ -93,7 +109,7 @@ export default function Folders() {
                       variant="outline"
                       size="sm"
                       className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => setOpenFolderId(folder.id)}
+                      onClick={() => setOpenFolderId(folder.id.toString())}
                     >
                       Open
                     </Button>

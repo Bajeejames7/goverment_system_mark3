@@ -24,3 +24,18 @@ pool.query('SELECT NOW()', (err, res) => {
   }
   pool.end();
 });
+
+const { db } = require('./server/db');
+const { letters } = require('./shared/schema');
+
+async function testLettersTable() {
+  try {
+    // Try to query the letters table structure
+    const result = await db.select().from(letters).limit(1);
+    console.log('Letters table structure:', result);
+  } catch (error) {
+    console.error('Error querying letters table:', error.message);
+  }
+}
+
+testLettersTable();

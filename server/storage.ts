@@ -55,6 +55,7 @@ export interface IStorage {
   getAllFolders(): Promise<Folder[]>;
   createFolder(folder: InsertFolder): Promise<Folder>;
   updateFolder(id: number, folder: Partial<Folder>): Promise<Folder | undefined>;
+  deleteFolder(id: number): Promise<Folder | undefined>;
   getLetter(id: number): Promise<Letter | undefined>;
   getLetterByReference(reference: string): Promise<Letter | undefined>;
   getLettersByFolder(folderId: number): Promise<Letter[]>;
@@ -63,6 +64,7 @@ export interface IStorage {
   getRecentLetters(limit: number): Promise<Letter[]>;
   createLetter(letter: InsertLetter): Promise<Letter>;
   updateLetter(id: number, letter: Partial<Letter>): Promise<Letter | undefined>;
+  deleteLetter(id: number): Promise<Letter | undefined>;
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getRecentAuditLogs(limit: number): Promise<AuditLog[]>;
   getRoutingRule(id: number): Promise<RoutingRule | undefined>;
@@ -308,6 +310,35 @@ export const storage: IStorage = {
     }
   },
 
+  async deleteFolder(id: number) {
+    try {
+      if (!id || id <= 0) {
+        throw new StorageError('Invalid folder ID provided', 'INVALID_ID');
+      }
+      
+      // First, we need to handle letters in this folder
+      // We'll set their folderId to null rather than deleting them
+      await db.update(letters)
+        .set({ folderId: null })
+        .where(eq(letters.folderId, id));
+      
+      // Then delete the folder itself
+      const [deleted] = await db.update(folders)
+        .set({ isActive: false })
+        .where(eq(folders.id, id))
+        .returning();
+        
+      if (!deleted) {
+        throw new NotFoundError('Folder', id);
+      }
+      
+      return deleted;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'deleteFolder');
+    }
+  },
+
   // Letters
   async getLetter(id: number) {
     try {
@@ -436,6 +467,43 @@ export const storage: IStorage = {
     }
   },
 
+  async deleteLetter(id: number) {
+    try {
+      if (!id || id <= 0) {
+        throw new StorageError('Invalid letter ID provided', 'INVALID_ID');
+      }
+      
+      // First, we need to handle files associated with this letter
+      // We'll set their isActive to false rather than deleting them
+      const letter = await db.query.letters.findFirst({ where: eq(letters.id, id) });
+      if (letter && letter.fileId) {
+        try {
+          await db.update(files)
+            .set({ isActive: false })
+            .where(eq(files.id, letter.fileId));
+        } catch (fileError) {
+          console.warn('Warning: Failed to deactivate file associated with letter', fileError);
+          // Continue with letter deletion even if file deactivation fails
+        }
+      }
+      
+      // Then delete the letter itself (hard delete since there's no isActive column)
+      const [deleted] = await db.delete(letters)
+        .where(eq(letters.id, id))
+        .returning();
+        
+      if (!deleted) {
+        throw new NotFoundError('Letter', id);
+      }
+      
+      return deleted;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      if (error instanceof NotFoundError) throw error;
+      handleDbError(error, 'deleteLetter');
+    }
+  },
+
   // Audit Logs
   async createAuditLog(log: InsertAuditLog) {
     try {
@@ -453,7 +521,7 @@ export const storage: IStorage = {
   
   async getRecentAuditLogs(limit: number) {
     try {
-      const validLimit = Math.min(Math.max(limit || 20, 1), 100); // Between 1 and 100
+      const validLimit = Math.min(Math.max(limit || 10, 1), 100); // Between 1 and 100
       return await db.select().from(auditLogs)
         .orderBy(desc(auditLogs.timestamp))
         .limit(validLimit);
@@ -462,95 +530,216 @@ export const storage: IStorage = {
     }
   },
 
-  // Routing Rules (stub)
-  async getRoutingRule(id: number) { return undefined; },
-  async getRoutingRulesByDepartment(department: string) { return []; },
-  async getAllRoutingRules() { return []; },
-  async createRoutingRule(rule: InsertRoutingRule) { return undefined; },
-  async updateRoutingRule(id: number, rule: Partial<RoutingRule>) { return undefined; },
+  // Routing Rules
+  async getRoutingRule(id: number) {
+    try {
+      if (!id || id <= 0) {
+        throw new StorageError('Invalid routing rule ID provided', 'INVALID_ID');
+      }
+      return await db.query.routingRules.findFirst({ where: eq(routingRules.id, id) });
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'getRoutingRule');
+    }
+  },
+  
+  async getRoutingRulesByDepartment(department: string) {
+    try {
+      if (!department?.trim()) {
+        throw new StorageError('Department is required', 'MISSING_DEPARTMENT');
+      }
+      return await db.query.routingRules.findMany({ 
+        where: and(eq(routingRules.department, department), eq(routingRules.isActive, true)) 
+      }) || [];
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'getRoutingRulesByDepartment');
+      return [];
+    }
+  },
+  
+  async getAllRoutingRules() {
+    try {
+      return await db.select().from(routingRules).where(eq(routingRules.isActive, true)) || [];
+    } catch (error) {
+      handleDbError(error, 'getAllRoutingRules');
+      return [];
+    }
+  },
+  
+  async createRoutingRule(rule: InsertRoutingRule) {
+    try {
+      if (!rule.department?.trim() || !rule.rule?.trim()) {
+        throw new StorageError('Department and rule are required', 'MISSING_REQUIRED_FIELDS');
+      }
+      
+      const [newRule] = await db.insert(routingRules).values(rule).returning();
+      return newRule;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'createRoutingRule');
+      throw error;
+    }
+  },
+  
+  async updateRoutingRule(id: number, rule: Partial<RoutingRule>) {
+    try {
+      if (!id || id <= 0) {
+        throw new StorageError('Invalid routing rule ID provided', 'INVALID_ID');
+      }
+      
+      const [updated] = await db.update(routingRules)
+        .set(rule)
+        .where(eq(routingRules.id, id))
+        .returning();
+        
+      if (!updated) {
+        throw new NotFoundError('RoutingRule', id);
+      }
+      
+      return updated;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'updateRoutingRule');
+    }
+  },
 
-  // Document Routing (stub)
-  async getDocumentRouting(id: number) { return undefined; },
-  async getDocumentRoutingByLetter(letterId: number) { return []; },
-  async getAllDocumentRoutings() { return []; },
-  async createDocumentRouting(routing: InsertDocumentRouting) { return undefined; },
-  async updateDocumentRouting(id: number, routing: Partial<DocumentRouting>) { return undefined; },
+  // Document Routing
+  async getDocumentRouting(id: number) {
+    try {
+      if (!id || id <= 0) {
+        throw new StorageError('Invalid document routing ID provided', 'INVALID_ID');
+      }
+      return await db.query.documentRoutings.findFirst({ where: eq(documentRoutings.id, id) });
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'getDocumentRouting');
+    }
+  },
+  
+  async getDocumentRoutingByLetter(letterId: number) {
+    try {
+      if (!letterId || letterId <= 0) {
+        throw new StorageError('Invalid letter ID provided', 'INVALID_ID');
+      }
+      return await db.query.documentRoutings.findMany({ where: eq(documentRoutings.letterId, letterId) });
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'getDocumentRoutingByLetter');
+    }
+  },
+  
+  async getAllDocumentRoutings() {
+    try {
+      return await db.select().from(documentRoutings) || [];
+    } catch (error) {
+      handleDbError(error, 'getAllDocumentRoutings');
+      return [];
+    }
+  },
+  
+  async createDocumentRouting(routing: InsertDocumentRouting) {
+    try {
+      if (!routing.letterId || !routing.userId) {
+        throw new StorageError('Letter ID and user ID are required', 'MISSING_REQUIRED_FIELDS');
+      }
+      
+      const [newRouting] = await db.insert(documentRoutings).values(routing).returning();
+      return newRouting;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'createDocumentRouting');
+      throw error;
+    }
+  },
+  
+  async updateDocumentRouting(id: number, routing: Partial<DocumentRouting>) {
+    try {
+      if (!id || id <= 0) {
+        throw new StorageError('Invalid document routing ID provided', 'INVALID_ID');
+      }
+      
+      const [updated] = await db.update(documentRoutings)
+        .set(routing)
+        .where(eq(documentRoutings.id, id))
+        .returning();
+        
+      if (!updated) {
+        throw new NotFoundError('DocumentRouting', id);
+      }
+      
+      return updated;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'updateDocumentRouting');
+    }
+  },
 
-  // Automated Routing (stub)
-  async evaluateRoutingRules(letter: Letter, userDepartment: string) { return []; },
-  async routeDocument(letterId: number, userId: string) { return []; },
+  // Routing Logic
+  async evaluateRoutingRules(letter: Letter, userDepartment: string) {
+    try {
+      if (!letter || !userDepartment?.trim()) {
+        throw new StorageError('Letter and user department are required', 'MISSING_REQUIRED_FIELDS');
+      }
+      
+      const rules = await this.getAllRoutingRules();
+      const applicableRules = rules.filter(rule => rule.department === userDepartment && rule.isActive);
+      
+      return applicableRules;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'evaluateRoutingRules');
+    }
+  },
+  
+  async routeDocument(letterId: number, userId: string) {
+    try {
+      if (!letterId || letterId <= 0 || !userId?.trim()) {
+        throw new StorageError('Letter ID and user ID are required', 'MISSING_REQUIRED_FIELDS');
+      }
+      
+      const [newRouting] = await db.insert(documentRoutings).values({ letterId, userId }).returning();
+      return newRouting;
+    } catch (error) {
+      if (error instanceof StorageError) throw error;
+      handleDbError(error, 'routeDocument');
+    }
+  },
 
   // Stats
   async getStats() {
     try {
-      const [totalFoldersResult, activeLettersResult, pendingLettersResult, activeUsersResult] = await Promise.all([
-        db.select({ count: count() }).from(folders).where(eq(folders.isActive, true)),
-        db.select({ count: count() }).from(letters),
-        db.select({ count: count() }).from(letters).where(eq(letters.status, 'pending')),
-        db.select({ count: count() }).from(users).where(eq(users.isActive, true))
-      ]);
+      const totalFolders = await db.select({ count: count() }).from(folders).where(eq(folders.isActive, true));
+      const activeLetters = await db.select({ count: count() }).from(letters).where(eq(letters.status, 'active'));
+      const pendingVerification = await db.select({ count: count() }).from(letters).where(eq(letters.status, 'pending_verification'));
+      const activeUsers = await db.select({ count: count() }).from(users).where(eq(users.isActive, true));
       
       return {
-        totalFolders: totalFoldersResult[0]?.count || 0,
-        activeLetters: activeLettersResult[0]?.count || 0,
-        pendingVerification: pendingLettersResult[0]?.count || 0,
-        activeUsers: activeUsersResult[0]?.count || 0
+        totalFolders: totalFolders[0]?.count || 0,
+        activeLetters: activeLetters[0]?.count || 0,
+        pendingVerification: pendingVerification[0]?.count || 0,
+        activeUsers: activeUsers[0]?.count || 0,
       };
     } catch (error) {
-      console.error('Error fetching stats:', error);
-      // Return zero stats on error rather than throwing
-      return {
-        totalFolders: 0,
-        activeLetters: 0,
-        pendingVerification: 0,
-        activeUsers: 0
-      };
+      handleDbError(error, 'getStats');
     }
   },
-
-  // User Stats
+  
   async getUserStats() {
     try {
-      // Get role counts
-      const [adminCountResult, totalUsersResult] = await Promise.all([
-        db
-          .select({ count: count() })
-          .from(users)
-          .innerJoin(userRoles, eq(users.id, userRoles.userId))
-          .innerJoin(roles, eq(userRoles.roleId, roles.id))
-          .where(and(eq(users.isActive, true), eq(roles.name, 'admin'))),
-        db.select({ count: count() }).from(users).where(eq(users.isActive, true))
-      ]);
-
-      const [registryCountResult, officerCountResult] = await Promise.all([
-        db
-          .select({ count: count() })
-          .from(users)
-          .innerJoin(userRoles, eq(users.id, userRoles.userId))
-          .innerJoin(roles, eq(userRoles.roleId, roles.id))
-          .where(and(eq(users.isActive, true), eq(roles.name, 'registry'))),
-        db
-          .select({ count: count() })
-          .from(users)
-          .innerJoin(userRoles, eq(users.id, userRoles.userId))
-          .innerJoin(roles, eq(userRoles.roleId, roles.id))
-          .where(and(eq(users.isActive, true), eq(roles.name, 'officer')))
-      ]);
+      const totalUsers = await db.select({ count: count() }).from(users).where(eq(users.isActive, true));
+      const adminUsers = await db.select({ count: count() }).from(users).where(and(eq(users.isActive, true), eq(users.level, 'admin')));
+      const registryUsers = await db.select({ count: count() }).from(users).where(and(eq(users.isActive, true), eq(users.level, 'registry')));
+      const officerUsers = await db.select({ count: count() }).from(users).where(and(eq(users.isActive, true), eq(users.level, 'officer')));
       
       return {
-        totalUsers: totalUsersResult[0]?.count || 0,
-        adminUsers: adminCountResult[0]?.count || 0,
-        registryUsers: registryCountResult[0]?.count || 0,
-        officerUsers: officerCountResult[0]?.count || 0,
+        totalUsers: totalUsers[0]?.count || 0,
+        adminUsers: adminUsers[0]?.count || 0,
+        registryUsers: registryUsers[0]?.count || 0,
+        officerUsers: officerUsers[0]?.count || 0,
       };
     } catch (error) {
-      console.error('Error fetching user stats:', error);
-      return {
-        totalUsers: 0,
-        adminUsers: 0,
-        registryUsers: 0,
-        officerUsers: 0,
-      };
+      handleDbError(error, 'getUserStats');
     }
   },
-};
+}
