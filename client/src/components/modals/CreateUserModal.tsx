@@ -40,10 +40,11 @@ export default function CreateUserModal({ open, onOpenChange }: CreateUserModalP
       const response = await apiRequest("POST", "/api/users", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
-        title: "Success",
-        description: "User created successfully. Verification email sent.",
+        title: "✅ User Created Successfully!",
+        description: `User has been registered and added to the system.`,
+        duration: 5000,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       onOpenChange(false);
@@ -51,9 +52,10 @@ export default function CreateUserModal({ open, onOpenChange }: CreateUserModalP
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "❌ User Creation Failed",
         description: error.message,
         variant: "destructive",
+        duration: 5000,
       });
     },
   });

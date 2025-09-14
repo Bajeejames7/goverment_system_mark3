@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import CreateFolderModal from "@/components/modals/CreateFolderModal";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import Letters from "./Letters";
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import FolderLetters from "./FolderLetters";
 import { FaFolder } from "react-icons/fa";
+import { X } from "lucide-react";
 
 export default function Folders() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -137,11 +138,15 @@ export default function Folders() {
 
       {/* Letters Management Modal */}
       <Dialog open={!!openFolderId} onOpenChange={() => setOpenFolderId(null)}>
-        <DialogContent className="max-w-4xl w-full mx-auto bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Letters in Folder</h2>
+        <DialogContent className="max-w-4xl w-full max-h-[80vh] flex flex-col bg-white dark:bg-gray-900 rounded-lg shadow-xl p-0">
+          <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+            <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white m-0">
+              Letters in Folder
+            </DialogTitle>
           </div>
-          {openFolderId && <Letters folderId={openFolderId} />}
+          <div className="flex-1 overflow-y-auto p-6">
+            {openFolderId && <FolderLetters folderId={openFolderId} onUpload={() => setOpenFolderId(null)} />}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

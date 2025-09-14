@@ -110,19 +110,20 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  // Stats endpoint
+  // Stats endpoint - simplified version
   app.get('/api/stats', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const [totalFoldersResult] = await db.select({ count: count() }).from(folders);
-      const [totalLettersResult] = await db.select({ count: count() }).from(letters);
-      const [activeUsersResult] = await db.select({ count: count() }).from(users).where(eq(users.isActive, true));
-      const [pendingLettersResult] = await db.select({ count: count() }).from(letters).where(eq(letters.status, 'pending_review'));
+      // Use a simple query approach
+      const totalFoldersResult = await db.execute('SELECT COUNT(*) as count FROM folders WHERE is_active = true');
+      const totalLettersResult = await db.execute('SELECT COUNT(*) as count FROM letters');
+      const pendingLettersResult = await db.execute("SELECT COUNT(*) as count FROM letters WHERE status = 'pending'");
+      const activeUsersResult = await db.execute('SELECT COUNT(*) as count FROM users WHERE is_active = true');
 
       res.json({
-        totalFolders: totalFoldersResult.count || 0,
-        activeLetters: totalLettersResult.count || 0,
-        pendingVerification: pendingLettersResult.count || 0,
-        activeUsers: activeUsersResult.count || 0
+        totalFolders: parseInt(totalFoldersResult.rows[0].count) || 0,
+        activeLetters: parseInt(totalLettersResult.rows[0].count) || 0,
+        pendingVerification: parseInt(pendingLettersResult.rows[0].count) || 0,
+        activeUsers: parseInt(activeUsersResult.rows[0].count) || 0
       });
     } catch (error) {
       console.error('Stats error:', error);
@@ -130,7 +131,7 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  // Recent letters endpoint
+  // Recent letters endpoint - simplified version
   app.get('/api/letters/recent', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const recentLetters = await db.select().from(letters)
@@ -165,7 +166,22 @@ export function registerAuthRoutes(app: Express) {
         .where(eq(folders.isActive, true))
         .orderBy(desc(folders.createdAt));
       
-      res.json(userFolders);
+      // Add letter count for each folder
+      const foldersWithCounts = await Promise.all(
+        userFolders.map(async (folder) => {
+          try {
+            const lettersResult = await db.select().from(letters)
+              .where(eq(letters.folderId, folder.id));
+            const letterCount = Array.isArray(lettersResult) ? lettersResult.length : 0;
+            return { ...folder, letterCount };
+          } catch (letterError) {
+            console.warn(`Error getting letters for folder ${folder.id}:`, letterError);
+            return { ...folder, letterCount: 0 };
+          }
+        })
+      );
+      
+      res.json(foldersWithCounts);
     } catch (error) {
       console.error('Folders error:', error);
       res.status(500).json({ message: 'Failed to fetch folders' });

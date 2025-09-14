@@ -171,7 +171,7 @@ export default function Overview() {
                     <div className="ml-3">
                       <p className="text-sm text-gray-900 dark:text-white">{log.details?.description || log.action}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(log.timestamp).toLocaleTimeString()}
+                        {new Date(log.timestamp).toLocaleString()}
                       </p>
                     </div>
                   </div>

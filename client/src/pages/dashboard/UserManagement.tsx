@@ -6,17 +6,34 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import CreateUserModal from "@/components/modals/CreateUserModal";
+import RegisterUserModal from "@/components/modals/RegisterUserModal";
 import { User } from "@shared/schema";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Extended user type with roles array
+interface UserWithRoles extends Omit<User, 'password'> {
+  roles: string[];
+}
 
 export default function UserManagement() {
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
   const { user, userRole } = useAuth();
 
-  const { data: users = [], isLoading } = useQuery<User[]>({
+  const { data: users = [], isLoading } = useQuery<UserWithRoles[]>({
     queryKey: ['/api/users'],
   });
+
+  // Helper function to get user's primary role
+  const getUserPrimaryRole = (user: UserWithRoles): string => {
+    if (user.roles && user.roles.length > 0) {
+      // Prioritize admin role
+      if (user.roles.includes('admin')) return 'admin';
+      if (user.roles.includes('registry')) return 'registry';
+      if (user.roles.includes('officer')) return 'officer';
+      return user.roles[0]; // Return first role if none of the above
+    }
+    return 'unknown';
+  };
 
   // Use canAddUsers from auth context
   const { canAddUsers } = useAuth();
@@ -107,9 +124,9 @@ export default function UserManagement() {
     );
   }
 
-  const adminUsers = users.filter(user => user.role === 'admin');
-  const registryUsers = users.filter(user => user.role === 'registry');
-  const officerUsers = users.filter(user => user.role === 'officer');
+  const adminUsers = users.filter(user => user.roles && user.roles.includes('admin'));
+  const registryUsers = users.filter(user => user.roles && user.roles.includes('registry'));
+  const officerUsers = users.filter(user => user.roles && user.roles.includes('officer'));
 
   const roleCounts = getExistingRoleCounts();
 
@@ -156,7 +173,7 @@ export default function UserManagement() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-red-200 dark:border-red-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-red-700 dark:text-red-300">
@@ -172,32 +189,17 @@ export default function UserManagement() {
           </CardContent>
         </Card>
 
-        <Card className="border-blue-200 dark:border-blue-800">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
-              Registry Officers
-            </CardTitle>
-            <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-800 dark:text-blue-200">{registryUsers.length}</div>
-            <p className="text-xs text-blue-600 dark:text-blue-400">
-              Document verification
-            </p>
-          </CardContent>
-        </Card>
-
         <Card className="border-green-200 dark:border-green-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
-              Field Officers
+              Total Users
             </CardTitle>
             <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-800 dark:text-green-200">{officerUsers.length}</div>
+            <div className="text-2xl font-bold text-green-800 dark:text-green-200">{users.length}</div>
             <p className="text-xs text-green-600 dark:text-green-400">
-              Document upload
+              Number of users in the system
             </p>
           </CardContent>
         </Card>
@@ -240,9 +242,9 @@ export default function UserManagement() {
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell className="text-gray-600 dark:text-gray-300">{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role)} className="flex items-center gap-1 w-fit">
-                        {getRoleIcon(user.role)}
-                        {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Unknown"}
+                      <Badge variant={getRoleBadgeVariant(getUserPrimaryRole(user))} className="flex items-center gap-1 w-fit">
+                        {getRoleIcon(getUserPrimaryRole(user))}
+                        {getUserPrimaryRole(user).charAt(0).toUpperCase() + getUserPrimaryRole(user).slice(1)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-gray-600 dark:text-gray-300">{user.department}</TableCell>
@@ -261,10 +263,10 @@ export default function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* Create User Modal */}
-      <CreateUserModal 
+      {/* Register User Modal */}
+      <RegisterUserModal 
         open={createUserModalOpen} 
-        onOpenChange={setCreateUserModalOpen} 
+        onClose={() => setCreateUserModalOpen(false)} 
       />
     </div>
   );

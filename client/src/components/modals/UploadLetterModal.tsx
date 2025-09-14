@@ -18,11 +18,12 @@ interface UploadLetterModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folderId?: string;
+  onSuccess?: () => void; // Add onSuccess prop
 }
 
 type UploadLetterFormData = z.infer<typeof uploadLetterFormSchema>;
 
-export default function UploadLetterModal({ open, onOpenChange, folderId }: UploadLetterModalProps) {
+export default function UploadLetterModal({ open, onOpenChange, folderId, onSuccess }: UploadLetterModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -72,7 +73,7 @@ export default function UploadLetterModal({ open, onOpenChange, folderId }: Uplo
       }
       return result.letter;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Success",
         description: "Letter uploaded successfully.",
@@ -80,6 +81,8 @@ export default function UploadLetterModal({ open, onOpenChange, folderId }: Uplo
       queryClient.invalidateQueries({ queryKey: ["/api/letters"] });
       form.reset();
       setSelectedFile(null);
+      onOpenChange(false); // Close the modal
+      if (onSuccess) onSuccess(); // Call the onSuccess callback
     },
     onError: (error: Error) => {
       toast({

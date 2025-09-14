@@ -16,6 +16,8 @@ export interface AuthenticatedRequest extends Request {
     roles: string[];
     department?: string;
     position?: string;
+    canAssignLetters?: boolean;
+    level?: number;
   };
 }
 
@@ -57,19 +59,30 @@ export async function getUserWithRoles(userId: number) {
 
     const user = userResult.rows[0];
 
-    // Get user roles
-    const rolesResult = await pool.query(`
-      SELECT r.name 
-      FROM roles r
-      INNER JOIN user_roles ur ON r.id = ur.role_id
-      WHERE ur.user_id = $1
-    `, [userId]);
+    // Get user roles with better error handling
+    let userRoleNames: string[] = [];
+    
+    try {
+      const rolesResult = await pool.query(`
+        SELECT r.name 
+        FROM roles r
+        INNER JOIN user_roles ur ON r.id = ur.role_id
+        WHERE ur.user_id = $1
+      `, [userId]);
 
-    let userRoleNames = rolesResult.rows.map(row => row.name);
+      userRoleNames = rolesResult.rows.map(row => row.name);
+    } catch (roleError) {
+      console.warn('Error fetching user roles:', roleError);
+    }
     
     // If no roles found in user_roles table, check if user has a direct role field
     if (userRoleNames.length === 0 && user.role) {
       userRoleNames = [user.role];
+    }
+    
+    // Default to 'user' role if no roles found
+    if (userRoleNames.length === 0) {
+      userRoleNames = ['user'];
     }
 
     return {
@@ -80,6 +93,8 @@ export async function getUserWithRoles(userId: number) {
       department: user.department,
       position: user.position,
       isActive: user.is_active,
+      canAssignLetters: user.can_assign_letters || false,
+      level: user.level || 0,
     };
   } catch (error) {
     console.error('Error getting user with roles:', error);
@@ -89,22 +104,47 @@ export async function getUserWithRoles(userId: number) {
 
 // Authentication middleware
 export async function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-  if (!token) {
-    return res.status(401).json({ message: 'No token provided' });
-  }
-
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    return res.status(401).json({ message: 'Invalid token' });
-  }
-
   try {
+    console.log('--- AUTH MIDDLEWARE DEBUG ---');
+    console.log('Request method:', req.method);
+    console.log('Request path:', req.path);
+    
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    
+    if (!token) {
+      console.log('No token provided');
+      return res.status(401).json({ 
+        message: 'Authentication required', 
+        code: 'NO_TOKEN' 
+      });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      console.log('Invalid token');
+      return res.status(401).json({ 
+        message: 'Invalid or expired token', 
+        code: 'INVALID_TOKEN' 
+      });
+    }
+
+    // Validate required fields in token
+    if (!decoded.userId) {
+      console.log('Token missing userId');
+      return res.status(401).json({ 
+        message: 'Invalid token format', 
+        code: 'MALFORMED_TOKEN' 
+      });
+    }
+
     const user = await getUserWithRoles(decoded.userId);
     if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'User not found or inactive' });
+      console.log('User not found or inactive:', decoded.userId);
+      return res.status(401).json({ 
+        message: 'User not found or account deactivated', 
+        code: 'USER_INACTIVE' 
+      });
     }
 
     req.user = {
@@ -113,13 +153,22 @@ export async function authenticateToken(req: AuthenticatedRequest, res: Response
       name: user.name,
       roles: user.roles,
       department: user.department,
-      position: user.position
+      position: user.position,
+      canAssignLetters: user.canAssignLetters,
+      level: user.level,
     };
 
+    console.log('Authentication successful for user:', user.email);
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(500).json({ message: 'Authentication error' });
+    // Ensure we always return JSON
+    if (!res.headersSent) {
+      return res.status(500).json({ 
+        message: 'Authentication service error', 
+        code: 'AUTH_SERVICE_ERROR' 
+      });
+    }
   }
 }
 
@@ -127,12 +176,20 @@ export async function authenticateToken(req: AuthenticatedRequest, res: Response
 export function requireRole(allowedRoles: string[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ 
+        message: 'Authentication required',
+        code: 'NOT_AUTHENTICATED' 
+      });
     }
 
     const hasRole = req.user.roles.some(role => allowedRoles.includes(role));
     if (!hasRole) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
+      console.log(`Access denied for user ${req.user.email}. Required roles: ${allowedRoles.join(', ')}, User roles: ${req.user.roles.join(', ')}`);
+      return res.status(403).json({ 
+        message: 'Insufficient permissions',
+        code: 'INSUFFICIENT_PERMISSIONS',
+        requiredRoles: allowedRoles 
+      });
     }
 
     next();
@@ -141,12 +198,42 @@ export function requireRole(allowedRoles: string[]) {
 
 // Admin only middleware
 export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  console.log('--- REQUIRE ADMIN DEBUG ---');
   if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
+    console.log('No req.user found');
+    return res.status(401).json({ 
+      message: 'Authentication required',
+      code: 'NOT_AUTHENTICATED' 
+    });
+  }
+  
+  console.log('req.user roles:', req.user.roles);
+  if (!req.user.roles.includes('admin')) {
+    console.log('User does not have admin role');
+    return res.status(403).json({ 
+      message: 'Administrator access required',
+      code: 'ADMIN_REQUIRED' 
+    });
+  }
+  
+  console.log('User is admin, proceeding');
+  next();
+}
+
+// Middleware to check if user can assign letters
+export function requireAssignmentPermission(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ 
+      message: 'Authentication required',
+      code: 'NOT_AUTHENTICATED' 
+    });
   }
 
-  if (!req.user.roles.includes('admin')) {
-    return res.status(403).json({ message: 'Admin access required' });
+  if (!req.user.canAssignLetters && !req.user.roles.includes('admin')) {
+    return res.status(403).json({ 
+      message: 'Letter assignment permission required',
+      code: 'ASSIGNMENT_PERMISSION_REQUIRED' 
+    });
   }
 
   next();

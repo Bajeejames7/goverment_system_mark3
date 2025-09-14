@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authenticateToken, requireAdmin, AuthenticatedRequest } from "./auth";
@@ -9,6 +9,45 @@ import path from "path";
 import { files } from "@shared/schema";
 import fs from "fs";
 import { db } from "./db";
+import { eq } from "drizzle-orm";
+
+// Enhanced error handling helper
+const handleAsyncError = (fn: Function) => {
+  return (req: Request | AuthenticatedRequest, res: Response, next: any) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+};
+
+// Enhanced error response helper
+const sendErrorResponse = (res: Response, error: any, defaultMessage = "Internal server error") => {
+  console.error('Route error:', error);
+  
+  // Handle Zod validation errors
+  if (error instanceof z.ZodError) {
+    const formattedErrors = error.errors.map(err => ({
+      field: err.path.join('.'),
+      message: err.message,
+    }));
+    return res.status(400).json({ 
+      message: "Validation failed", 
+      errors: formattedErrors 
+    });
+  }
+  
+  // Handle specific database errors
+  if (error.message?.includes('duplicate key')) {
+    return res.status(409).json({ message: "Resource already exists" });
+  }
+  
+  if (error.message?.includes('not found')) {
+    return res.status(404).json({ message: "Resource not found" });
+  }
+  
+  // Default error response
+  const statusCode = error.statusCode || error.status || 500;
+  const message = process.env.NODE_ENV === 'production' ? defaultMessage : error.message;
+  res.status(statusCode).json({ message });
+};
 
 
 
@@ -46,45 +85,95 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
-  app.post("/api/auth/register", requireAdmin, async (req, res) => {
+  app.post("/api/auth/register", handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
+      // Debug: log headers and req.user
+      console.log('REGISTER HEADERS:', req.headers);
+      console.log('REGISTER REQ.USER:', req.user);
       const userData = insertUserSchema.parse(req.body);
 
       // Store user in our database
+      // Allow unauthenticated creation: createdBy and userId are optional
+      const createdBy = req.user?.id || null;
       const user = await storage.createUser({
         ...userData,
-        createdBy: req.user.id,
+        createdBy,
       });
 
-      // Log the action
+      // Log the action if possible
+      if (createdBy) {
+        await storage.createAuditLog({
+          action: "create_user",
+          entityType: "user",
+          entityId: user.id.toString(),
+          userId: createdBy.toString(),
+          details: { userEmail: user.email, userDepartment: user.department },
+        });
+      }
+
+      res.json({ success: true, user: { ...user, password: undefined } });
+    } catch (error) {
+      sendErrorResponse(res, error, "Failed to create user");
+    }
+  }));
+
+  // Admin-protected user creation endpoint
+  app.post("/api/users", authenticateToken, requireAdmin, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+
+      // Admin creates user with proper tracking
+      const user = await storage.createUser({
+        ...userData,
+        createdBy: req.user!.id,
+      });
+
+      // Log the admin action
       await storage.createAuditLog({
         action: "create_user",
         entityType: "user",
         entityId: user.id.toString(),
-        userId: req.user.id.toString(),
-        details: { userEmail: user.email, userRole: user.role },
+        userId: req.user!.id.toString(),
+        details: { 
+          userEmail: user.email, 
+          userDepartment: user.department,
+          createdByAdmin: req.user!.email 
+        },
       });
 
       res.json({ success: true, user: { ...user, password: undefined } });
     } catch (error) {
-      console.error("User creation error:", error);
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create user" });
+      sendErrorResponse(res, error, "Failed to create user");
     }
-  });
+  }));
 
   // User routes
-  app.get("/api/users", authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
+  app.get("/api/users", authenticateToken, requireAdmin, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users.map(user => ({ ...user, password: undefined })));
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch users" });
+      sendErrorResponse(res, error, "Failed to fetch users");
     }
-  });
+  }));
 
-  app.get("/api/users/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  // User statistics endpoint
+  app.get("/api/users/stats", authenticateToken, requireAdmin, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const stats = await storage.getUserStats();
+      res.json(stats);
+    } catch (error) {
+      sendErrorResponse(res, error, "Failed to fetch user statistics");
+    }
+  }));
+
+  app.get("/api/users/:id", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
       const user = await storage.getUser(id);
       
       if (!user) {
@@ -92,198 +181,281 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Users can only see their own profile unless they're admin
-      // (Assume req.user.roles is an array)
-      if (!req.user?.roles?.includes('admin') && user.createdBy !== req.user.id) {
+      if (!req.user?.roles?.includes('admin') && user.createdBy !== req.user?.id) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       res.json({ ...user, password: undefined });
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch user" });
+      sendErrorResponse(res, error, "Failed to fetch user");
     }
-  });
+  }));
 
   // Folder routes
-  app.get("/api/folders", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.get("/api/folders", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
+      console.log('📁 FOLDERS API: Starting request...');
+      
+      // Add no-cache headers
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      
       const folders = await storage.getAllFolders();
+      console.log(`📁 Found ${folders.length} folders`);
       
       // Add letter count for each folder
       const foldersWithCounts = await Promise.all(
         folders.map(async (folder) => {
-          const letters = await storage.getLettersByFolder(folder.id);
-          return { ...folder, letterCount: letters.length };
+          try {
+            const letters = await storage.getLettersByFolder(folder.id);
+            const letterCount = Array.isArray(letters) ? letters.length : 0;
+            return { ...folder, letterCount };
+          } catch (letterError) {
+            console.warn(`Error getting letters for folder ${folder.id}:`, letterError);
+            return { ...folder, letterCount: 0 };
+          }
         })
       );
       
+      // Debug: Get all letters to see what folder IDs they reference
+      const allLetters = await storage.getAllLetters();
+      console.log(`📧 Found ${allLetters ? allLetters.length : 0} total letters`);
+      
+      if (allLetters && allLetters.length > 0) {
+        const folderIds = [...new Set(allLetters.map(l => l.folderId).filter(Boolean))];
+        console.log(`📁 Unique folder IDs referenced:`, folderIds);
+      }
+
       res.json(foldersWithCounts);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch folders" });
+      sendErrorResponse(res, error, "Failed to fetch folders");
     }
-  });
+  }));
 
-  app.post("/api/folders", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post("/api/folders", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "Unauthorized: missing user id" });
-      }
       const folderData = insertFolderSchema.parse(req.body);
-      // Always set createdBy to the logged-in user (integer)
+
       const folder = await storage.createFolder({
         ...folderData,
-        createdBy: req.user.id, // integer, not string
+        createdBy: req.user!.id,
       });
+
       await storage.createAuditLog({
         action: "create_folder",
         entityType: "folder",
         entityId: folder.id.toString(),
-        userId: req.user.id.toString(),
-        details: { folderName: folder.name, department: folder.department },
+        userId: req.user!.id.toString(),
+        details: { folderName: folder.name },
       });
+
+      res.json({ success: true, folder });
+    } catch (error) {
+      sendErrorResponse(res, error, "Failed to create folder");
+    }
+  }));
+
+  app.get("/api/folders/:id", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid folder ID" });
+      }
+
+      const folder = await storage.getFolder(id);
+
+      if (!folder) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+
       res.json(folder);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create folder" });
+      sendErrorResponse(res, error, "Failed to fetch folder");
     }
-  });
+  }));
+
+  app.put("/api/folders/:id", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid folder ID" });
+      }
+
+      const folderData = insertFolderSchema.parse(req.body);
+
+      const folder = await storage.updateFolder(id, folderData);
+
+      if (!folder) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "update_folder",
+        entityType: "folder",
+        entityId: folder.id.toString(),
+        userId: req.user!.id.toString(),
+        details: { folderName: folder.name },
+      });
+
+      res.json({ success: true, folder });
+    } catch (error) {
+      sendErrorResponse(res, error, "Failed to update folder");
+    }
+  }));
+
+  app.delete("/api/folders/:id", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid folder ID" });
+      }
+
+      const folder = await storage.deleteFolder(id);
+
+      if (!folder) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "delete_folder",
+        entityType: "folder",
+        entityId: folder.id.toString(),
+        userId: req.user!.id.toString(),
+        details: { folderName: folder.name },
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      sendErrorResponse(res, error, "Failed to delete folder");
+    }
+  }));
 
   // Letter routes
-  app.get("/api/letters", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.get("/api/letters", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { folderId, status, date } = req.query;
-      let letters = await storage.getAllLetters();
-
-      // Apply filters
-      if (folderId && folderId !== 'all') {
-        letters = letters.filter(letter => letter.folderId === parseInt(folderId as string));
-      }
-      if (status && status !== 'all') {
-        letters = letters.filter(letter => letter.status === status);
-      }
-      if (date) {
-        const filterDate = new Date(date as string);
-        letters = letters.filter(letter => 
-          letter.uploadedAt && new Date(letter.uploadedAt).toDateString() === filterDate.toDateString()
-        );
-      }
+      const letters = await storage.getAllLetters();
 
       // Add folder and file info to each letter
       const lettersWithFoldersAndFiles = await Promise.all(
         letters.map(async (letter) => {
-          const folder = letter.folderId ? await storage.getFolder(letter.folderId) : null;
-          let file = null;
-          if (letter.fileId) {
-            // Fetch file info from files table
-            file = await db.query.files.findFirst({ where: (f) => f.id === letter.fileId });
+          try {
+            const folder = letter.folderId ? await storage.getFolder(letter.folderId) : null;
+            let file = null;
+            if (letter.fileId) {
+              file = await db.query.files.findFirst({ where: eq(files.id, letter.fileId) });
+            }
+            return {
+              ...letter,
+              folder,
+              fileName: file?.filename || null,
+              originalFileName: file?.originalName || null,
+              fileUrl: file?.filename ? `/uploads/${file.filename}` : null, // Revert to simple format
+            };
+          } catch (letterError) {
+            console.warn('Error processing letter:', letter.id, letterError);
+            return {
+              ...letter,
+              folder: null,
+              fileName: null,
+              originalFileName: null,
+              fileUrl: null,
+            };
           }
-          return {
-            ...letter,
-            folder,
-            fileName: file?.filename || null,
-            originalFileName: file?.originalName || null,
-          };
         })
       );
 
       res.json(lettersWithFoldersAndFiles);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch letters" });
+      sendErrorResponse(res, error, "Failed to fetch letters");
     }
-  });
+  }));
 
-  app.get("/api/letters/recent", authenticateToken, async (req, res) => {
+  app.post("/api/letters", authenticateToken, upload.single("file"), handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
-      console.log('DEBUG: /api/letters/recent endpoint called');
-      const letters = await storage.getRecentLetters(10);
-      // Add folder and file info to each letter (same as /api/letters)
-      const lettersWithFoldersAndFiles = await Promise.all(
-        letters.map(async (letter) => {
-          const folder = letter.folderId ? await storage.getFolder(letter.folderId) : null;
-          let file = null;
-          if (letter.fileId) {
-            // Use a direct SQL query to fetch the file info
-            const result = await db.execute('SELECT filename, original_name FROM files WHERE id = $1', [letter.fileId]);
-            file = result?.rows?.[0] || null;
-          }
-          console.log('DEBUG: letter', letter);
-          console.log('DEBUG: file', file);
-          return {
-            ...letter,
-            folder,
-            fileName: file?.filename || null,
-            originalFileName: file?.original_name || null,
-          };
-        })
-      );
-      console.log('DEBUG: lettersWithFoldersAndFiles', lettersWithFoldersAndFiles);
-      res.json(lettersWithFoldersAndFiles);
-    } catch (error) {
-      console.error('ERROR in /api/letters/recent:', error);
-      res.status(500).json({ message: "Failed to fetch recent letters" });
-    }
-  });
+      const letterData = insertLetterSchema.parse(req.body);
 
-  app.post("/api/letters/upload", authenticateToken, upload.single("file"), async (req: AuthenticatedRequest, res) => {
-    try {
-      console.log("DEBUG upload", req.body, req.user, req.file);
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
-      // Parse and coerce types from req.body (all fields are strings from multer)
-      const folderId = parseInt(req.body.folderId);
-      const letterData = insertLetterSchema.parse({
-        ...req.body,
-        folderId,
-        uploadedBy: req.user?.id, // Should be set by auth middleware
-      });
-      // Save file metadata in files table
-      const fileRecord = await db.insert(files).values({
+
+      // Create file entry in the files table
+      const [fileRecord] = await db.insert(files).values({
         filename: req.file.filename,
         originalName: req.file.originalname,
         mimeType: req.file.mimetype,
         size: req.file.size,
         path: req.file.path,
-        uploadedBy: req.user?.id,
-        isActive: true,
-        metadata: {},
-        folderId: letterData.folderId, // ADDED: associate file with folder
+        uploadedBy: req.user!.id,
       }).returning();
-      const fileId = fileRecord[0]?.id;
-      if (!fileId) {
-        return res.status(500).json({ message: "Failed to save file metadata" });
-      }
-      // Create letter referencing fileId
+
       const letter = await storage.createLetter({
         ...letterData,
-        uploadedBy: req.user?.id,
-        fileId,
+        createdBy: req.user!.id,
+        fileId: fileRecord.id, // Link the letter to the file
       });
+
       await storage.createAuditLog({
-        action: "upload_letter",
+        action: "create_letter",
         entityType: "letter",
         entityId: letter.id.toString(),
-        userId: req.user?.id?.toString(),
-        details: { letterTitle: letter.title, reference: letter.reference },
+        userId: req.user!.id.toString(),
+        details: { letterTitle: letter.title },
       });
+
       res.json({ success: true, letter });
     } catch (error) {
-      console.error("Upload error:", error);
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to upload letter" });
+      sendErrorResponse(res, error, "Failed to create letter");
     }
-  });
+  }));
 
-  app.patch("/api/letters/:id/verify", authenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.get("/api/letters/:id", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const { status, notes } = req.body;
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid letter ID" });
+      }
 
-      if (!['verified', 'rejected'].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
+      const letter = await storage.getLetter(id);
+
+      if (!letter) {
+        return res.status(404).json({ message: "Letter not found" });
+      }
+
+      res.json(letter);
+    } catch (error) {
+      sendErrorResponse(res, error, "Failed to fetch letter");
+    }
+  }));
+
+  app.put("/api/letters/:id", authenticateToken, upload.single("file"), handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid letter ID" });
+      }
+
+      const letterData = insertLetterSchema.parse(req.body);
+
+      // If a new file is uploaded, create a new file entry
+      let fileId = undefined;
+      if (req.file) {
+        const [fileRecord] = await db.insert(files).values({
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          size: req.file.size,
+          path: req.file.path,
+          uploadedBy: req.user!.id,
+        }).returning();
+        fileId = fileRecord.id;
       }
 
       const letter = await storage.updateLetter(id, {
-        status,
-        verifiedBy: req.user.id,
-        verifiedAt: new Date(),
+        ...letterData,
+        ...(fileId !== undefined && { fileId }), // Only update fileId if a new file was uploaded
       });
 
       if (!letter) {
@@ -291,44 +463,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.createAuditLog({
-        action: "verify_letter",
+        action: "update_letter",
         entityType: "letter",
         entityId: letter.id.toString(),
-        userId: req.user.id.toString(),
-        details: { status, notes, letterTitle: letter.title },
+        userId: req.user!.id.toString(),
+        details: { letterTitle: letter.title },
       });
 
-      res.json(letter);
+      res.json({ success: true, letter });
     } catch (error) {
-      res.status(500).json({ message: "Failed to verify letter" });
+      sendErrorResponse(res, error, "Failed to update letter");
     }
-  });
+  }));
 
-  // Stats route
-  app.get("/api/stats", authenticateToken, async (req, res) => {
+  app.delete("/api/letters/:id", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const stats = await storage.getStats();
-      res.json(stats);
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid letter ID" });
+      }
+
+      const letter = await storage.deleteLetter(id);
+
+      if (!letter) {
+        return res.status(404).json({ message: "Letter not found" });
+      }
+
+      await storage.createAuditLog({
+        action: "delete_letter",
+        entityType: "letter",
+        entityId: letter.id.toString(),
+        userId: req.user!.id.toString(),
+        details: { letterTitle: letter.title },
+      });
+
+      res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch stats" });
+      sendErrorResponse(res, error, "Failed to delete letter");
     }
-  });
+  }));
 
-  // Audit logs route
-  app.get("/api/audit-logs/recent", authenticateToken, async (req, res) => {
-    try {
-      const logs = await storage.getRecentAuditLogs(20);
-      res.json(logs);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch audit logs" });
-    }
-  });
-
-  // Health check
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
+  return createServer(app);
 }

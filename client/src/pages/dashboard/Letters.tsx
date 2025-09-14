@@ -247,13 +247,11 @@ export default function Letters({ folderId }: { folderId?: string }) {
                               variant="outline" 
                               size="sm" 
                               onClick={() => {
+                                // Simple approach - create link and click
                                 const link = document.createElement('a');
                                 link.href = letter.fileUrl;
-                                link.download = letter.fileName;
-                                link.target = '_blank';
-                                document.body.appendChild(link);
+                                link.download = letter.fileName || 'download';
                                 link.click();
-                                document.body.removeChild(link);
                               }}
                               className="gap-1"
                             >
