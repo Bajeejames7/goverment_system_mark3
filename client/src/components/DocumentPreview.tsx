@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { FileText, Download, Eye, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,13 +21,14 @@ export default function DocumentPreview({
 }: DocumentPreviewProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const getFileExtension = (filename: string) => {
-    return filename.split('.').pop()?.toLowerCase();
-  };
+  // Memoize file extension calculation
+  const fileExtension = useMemo(() => {
+    return fileName.split('.').pop()?.toLowerCase();
+  }, [fileName]);
 
-  const getFileIcon = (filename: string) => {
-    const extension = getFileExtension(filename);
-    switch (extension) {
+  // Memoize file icon
+  const fileIcon = useMemo(() => {
+    switch (fileExtension) {
       case 'pdf':
         return '📄';
       case 'doc':
@@ -36,11 +37,11 @@ export default function DocumentPreview({
       default:
         return '📎';
     }
-  };
+  }, [fileExtension]);
 
-  const getFileType = (filename: string) => {
-    const extension = getFileExtension(filename);
-    switch (extension) {
+  // Memoize file type
+  const fileType = useMemo(() => {
+    switch (fileExtension) {
       case 'pdf':
         return 'PDF Document';
       case 'doc':
@@ -50,18 +51,19 @@ export default function DocumentPreview({
       default:
         return 'Document';
     }
-  };
+  }, [fileExtension]);
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return 'Unknown size';
+  // Memoize file size formatting
+  const formattedFileSize = useMemo(() => {
+    if (!fileSize) return 'Unknown size';
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-  };
+    const i = Math.floor(Math.log(fileSize) / Math.log(1024));
+    return Math.round(fileSize / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  }, [fileSize]);
 
-  const isPDF = getFileExtension(fileName) === 'pdf';
+  const isPDF = fileExtension === 'pdf';
 
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
     const link = document.createElement('a');
     link.href = fileUrl;
     link.download = fileName;
@@ -69,9 +71,10 @@ export default function DocumentPreview({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, [fileUrl, fileName]);
 
-  const PreviewContent = () => {
+  // Memoize preview content to prevent unnecessary re-renders
+  const PreviewContent = useMemo(() => {
     if (isPDF) {
       return (
         <div className="w-full h-full bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
@@ -79,6 +82,7 @@ export default function DocumentPreview({
             src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
             className="w-full h-full border-0"
             title={`Preview of ${fileName}`}
+            loading="lazy"
           />
         </div>
       );
@@ -100,7 +104,7 @@ export default function DocumentPreview({
         </div>
       );
     }
-  };
+  }, [isPDF, fileUrl, fileName, handleDownload]);
 
   return (
     <>
@@ -112,12 +116,12 @@ export default function DocumentPreview({
           <DialogContent className="max-w-4xl w-full h-[80vh] flex flex-col">
             <DialogHeader className="flex-shrink-0">
               <DialogTitle className="flex items-center gap-3">
-                <span className="text-2xl">{getFileIcon(fileName)}</span>
+                <span className="text-2xl">{fileIcon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="truncate font-semibold">{fileName}</div>
                   <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                    <Badge variant="outline">{getFileType(fileName)}</Badge>
-                    {fileSize && <span>{formatFileSize(fileSize)}</span>}
+                    <Badge variant="outline">{fileType}</Badge>
+                    {fileSize && <span>{formattedFileSize}</span>}
                     {uploadedAt && (
                       <span>Uploaded {uploadedAt.toLocaleDateString()}</span>
                     )}
@@ -134,7 +138,7 @@ export default function DocumentPreview({
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-hidden">
-              <PreviewContent />
+              {PreviewContent}
             </div>
           </DialogContent>
         </Dialog>
@@ -142,16 +146,16 @@ export default function DocumentPreview({
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="text-2xl flex-shrink-0">{getFileIcon(fileName)}</div>
+              <div className="text-2xl flex-shrink-0">{fileIcon}</div>
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-gray-900 dark:text-white truncate">
                   {fileName}
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
                   <Badge variant="outline" className="text-xs">
-                    {getFileType(fileName)}
+                    {fileType}
                   </Badge>
-                  {fileSize && <span>{formatFileSize(fileSize)}</span>}
+                  {fileSize && <span>{formattedFileSize}</span>}
                   {uploadedAt && (
                     <span>Uploaded {uploadedAt.toLocaleDateString()}</span>
                   )}

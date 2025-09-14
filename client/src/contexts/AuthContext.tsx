@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const canAddUsers = isAdmin || isRegistry;
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    let timeout: NodeJS.Timeout | null = null;
     let lastActivity = Date.now();
 
     const resetTimer = () => {
@@ -93,13 +93,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }, 10 * 60 * 1000);
     };
 
+    // Debounce the resetTimer function to prevent excessive calls
+    const debouncedResetTimer = () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      timeout = setTimeout(resetTimer, 300); // Debounce for 300ms
+    };
+
     const activityEvents = ["mousemove", "keydown", "mousedown", "touchstart", "scroll"];
-    activityEvents.forEach(event => window.addEventListener(event, resetTimer));
+    activityEvents.forEach(event => window.addEventListener(event, debouncedResetTimer, { passive: true }));
     resetTimer();
 
     return () => {
       if (timeout) clearTimeout(timeout);
-      activityEvents.forEach(event => window.removeEventListener(event, resetTimer));
+      activityEvents.forEach(event => window.removeEventListener(event, debouncedResetTimer, { passive: true }));
     };
   }, []);
 

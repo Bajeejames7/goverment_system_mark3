@@ -54,6 +54,8 @@ export async function apiRequest(
       headers,
       body: data ? JSON.stringify(data) : undefined,
       credentials: "include",
+      // Add performance optimizations
+      keepalive: method === 'GET' ? true : undefined,
     });
 
     await throwIfResNotOk(res);
@@ -84,6 +86,8 @@ export const getQueryFn: <T>(options: {
           ...(token && { Authorization: `Bearer ${token}` }),
         },
         signal, // Support for cancellation
+        // Add performance optimizations
+        keepalive: true,
       });
 
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
@@ -124,6 +128,9 @@ export const queryClient = new QueryClient({
         return failureCount < 2;
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      // Add performance optimizations
+      refetchOnMount: true,
+      refetchOnReconnect: false,
     },
     mutations: {
       retry: (failureCount, error) => {
@@ -134,6 +141,8 @@ export const queryClient = new QueryClient({
         // Only retry once for server errors
         return failureCount < 1;
       },
+      // Add performance optimizations
+      networkMode: 'always',
     },
   },
 });

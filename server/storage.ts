@@ -376,7 +376,8 @@ export const storage: IStorage = {
   
   async getAllLetters() {
     try {
-      return await db.select().from(letters).orderBy(desc(letters.uploadedAt));
+      // Add limit to prevent performance issues with large datasets
+      return await db.select().from(letters).orderBy(desc(letters.uploadedAt)).limit(1000);
     } catch (error) {
       handleDbError(error, 'getAllLetters');
     }

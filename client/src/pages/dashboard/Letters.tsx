@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +39,9 @@ export default function Letters({ folderId }: { folderId?: string }) {
       if (!res.ok) throw new Error("Failed to fetch letters");
       return res.json();
     },
+    // Optimize query settings for better performance
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const { data: folders } = useQuery({
@@ -54,6 +57,9 @@ export default function Letters({ folderId }: { folderId?: string }) {
       if (!res.ok) throw new Error("Failed to fetch folders");
       return res.json();
     },
+    // Optimize query settings for better performance
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   useEffect(() => {
@@ -77,11 +83,19 @@ export default function Letters({ folderId }: { folderId?: string }) {
     return badges[status as keyof typeof badges] || badges.pending;
   };
 
-  // Utility function to determine file type
-  function getFileTypeIcon(fileName?: string) {
-    // Always show a document icon for all files
-    return <span className="text-white text-lg" title="File">📄</span>;
-  }
+  // Memoize the file type icon function to prevent unnecessary re-renders
+  const getFileTypeIcon = useMemo(() => {
+    return (fileName?: string) => {
+      // Always show a document icon for all files
+      return <span className="text-white text-lg" title="File">📄</span>;
+    };
+  }, []);
+
+  // Memoize the filtered letters to prevent unnecessary re-renders
+  const filteredLetters = useMemo(() => {
+    if (!letters) return [];
+    return letters;
+  }, [letters]);
 
   // Debug: log the letters data to verify fileName/originalFileName
   useEffect(() => {
@@ -171,7 +185,7 @@ export default function Letters({ folderId }: { folderId?: string }) {
       </Card>
 
       {/* Letters Table */}
-      {letters?.length > 0 ? (
+      {filteredLetters?.length > 0 ? (
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -186,7 +200,7 @@ export default function Letters({ folderId }: { folderId?: string }) {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {letters.map((letter: any) => (
+                  {filteredLetters.map((letter: any) => (
                     <tr key={letter.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -247,11 +261,15 @@ export default function Letters({ folderId }: { folderId?: string }) {
                               variant="outline" 
                               size="sm" 
                               onClick={() => {
-                                // Simple approach - create link and click
+                                // Create a temporary link element
                                 const link = document.createElement('a');
-                                link.href = letter.fileUrl;
+                                // Use the full URL for the href
+                                link.href = letter.fileUrl.startsWith('http') ? letter.fileUrl : `${window.location.origin}${letter.fileUrl}`;
                                 link.download = letter.fileName || 'download';
+                                // Add to DOM, click, then remove
+                                document.body.appendChild(link);
                                 link.click();
+                                document.body.removeChild(link);
                               }}
                               className="gap-1"
                             >

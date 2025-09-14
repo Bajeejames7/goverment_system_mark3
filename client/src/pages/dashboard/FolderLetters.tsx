@@ -144,11 +144,15 @@ export default function FolderLetters({ folderId, onUpload }: { folderId: string
                           variant="outline" 
                           size="sm" 
                           onClick={() => {
-                            // Simple approach - create link and click
+                            // Create a temporary link element
                             const link = document.createElement('a');
-                            link.href = letter.fileUrl;
+                            // Use the full URL for the href
+                            link.href = letter.fileUrl.startsWith('http') ? letter.fileUrl : `${window.location.origin}${letter.fileUrl}`;
                             link.download = letter.fileName || 'download';
+                            // Add to DOM, click, then remove
+                            document.body.appendChild(link);
                             link.click();
+                            document.body.removeChild(link);
                           }}
                           className="h-8 px-2 gap-1"
                         >

@@ -49,8 +49,6 @@ const sendErrorResponse = (res: Response, error: any, defaultMessage = "Internal
   res.status(statusCode).json({ message });
 };
 
-
-
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({
@@ -84,6 +82,16 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add performance headers
+  app.use((req, res, next) => {
+    res.set({
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    next();
+  });
+
   // Auth routes
   app.post("/api/auth/register", handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -196,11 +204,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('📁 FOLDERS API: Starting request...');
       
-      // Add no-cache headers
+      // Add cache headers for better performance
       res.set({
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+        'Pragma': 'cache',
+        'Expires': new Date(Date.now() + 300000).toUTCString()
       });
       
       const folders = await storage.getAllFolders();
@@ -336,6 +344,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Letter routes
   app.get("/api/letters", authenticateToken, handleAsyncError(async (req: AuthenticatedRequest, res: Response) => {
     try {
+      // Add cache headers for better performance
+      res.set({
+        'Cache-Control': 'public, max-age=60', // Cache for 1 minute
+        'Pragma': 'cache',
+        'Expires': new Date(Date.now() + 60000).toUTCString()
+      });
+      
       const letters = await storage.getAllLetters();
 
       // Add folder and file info to each letter
