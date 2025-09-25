@@ -11,15 +11,15 @@ export const users = pgTable("users", {
   position: text("position"),
   level: integer("level").default(0),
   canAssignLetters: boolean("can_assign_letters").default(false),
-  isActive: boolean("is_active").default(true),
-  emailVerified: boolean("email_verified").default(false),
-  emailVerificationToken: text("email_verification_token"),
-  emailVerificationExpires: timestamp("email_verification_expires"),
-  resetPasswordToken: text("reset_password_token"),
-  resetPasswordExpires: timestamp("reset_password_expires"),
-  lastLoginAt: timestamp("last_login_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  createdBy: integer("created_by").references(() => users.id),
+  isActive: boolean("isActive").default(true),
+  emailVerified: boolean("emailVerified").default(false),
+  emailVerificationToken: text("emailVerificationToken"),
+  emailVerificationExpires: timestamp("emailVerificationExpires"),
+  resetPasswordToken: text("resetPasswordToken"),
+  resetPasswordExpires: timestamp("resetPasswordExpires"),
+  lastLoginAt: timestamp("lastLoginAt"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  createdBy: integer("createdBy").references(() => users.id),
 });
 
 export const roles = pgTable("roles", {
@@ -86,7 +86,7 @@ export const folders = pgTable("folders", {
   name: text("name").notNull(),
   description: text("description"),
   department: text("department").notNull(),
-  createdBy: integer("createdBy").references(() => users.id), // Match camelCase database column
+  createdBy: integer("createdBy").references(() => users.id), // Match actual camelCase database column
   createdAt: timestamp("createdAt").defaultNow(),
   isActive: boolean("isActive").default(true),
 });
@@ -109,10 +109,10 @@ export const letters = pgTable("letters", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   reference: text("reference").notNull().unique(),
-  folderId: integer("folderId").references(() => folders.id),
+  folderId: integer("folderId").references(() => folders.id), // Letters table also uses camelCase
   fileId: integer("fileId").references(() => files.id),
   content: text("content"),
-  status: text("status").notNull().default("pending"),
+  status: text("status").notNull().default("pending"), // Text type, not enum
   letterType: text("letterType").notNull().default("formal"),
   requiresPasscode: boolean("requiresPasscode").default(false),
   passcode: text("passcode"),
@@ -121,7 +121,7 @@ export const letters = pgTable("letters", {
   assignedTo: integer("assignedTo").references(() => users.id),
   assignedBy: integer("assignedBy").references(() => users.id),
   verifiedBy: integer("verifiedBy").references(() => users.id),
-  uploadedAt: timestamp("uploadedAt").defaultNow(),
+  uploadedAt: timestamp("uploadedAt").defaultNow(), // Letters also uses camelCase
   openedAt: timestamp("openedAt"),
   assignedAt: timestamp("assignedAt"),
   verifiedAt: timestamp("verifiedAt"),
@@ -133,7 +133,7 @@ export const letters = pgTable("letters", {
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
   action: text("action").notNull(),
-  entityType: text("entityType").notNull(), // Match camelCase database column
+  entityType: text("entityType").notNull(), // Match actual camelCase database column
   entityId: text("entityId").notNull(),
   userId: text("userId").notNull(),
   details: jsonb("details"),
