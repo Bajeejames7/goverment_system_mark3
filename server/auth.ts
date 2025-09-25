@@ -59,31 +59,27 @@ export async function getUserWithRoles(userId: number) {
 
     const user = userResult.rows[0];
 
-    // Get user roles with better error handling
+    // Assign roles based on user type and position
     let userRoleNames: string[] = [];
     
-    try {
-      const rolesResult = await pool.query(`
-        SELECT r.name 
-        FROM roles r
-        INNER JOIN user_roles ur ON r.id = ur.role_id
-        WHERE ur.user_id = $1
-      `, [userId]);
-
-      userRoleNames = rolesResult.rows.map(row => row.name);
-    } catch (roleError) {
-      console.warn('Error fetching user roles:', roleError);
+    // Assign roles based on email and position
+    if (user.email === 'admin@rmu.gov.ke' || user.position === 'Administrator' || user.position === 'Admin') {
+      userRoleNames = ['admin'];
+    } else if (user.position === 'registry_admin' || user.department === 'Registry') {
+      userRoleNames = ['registry', 'registry_admin'];
+    } else if (user.position === 'ict_admin' || user.department === 'ICT') {
+      userRoleNames = ['ict', 'ict_admin'];
+    } else if (user.position === 'secretary') {
+      userRoleNames = ['secretary'];
+    } else if (user.position === 'principal_secretary') {
+      userRoleNames = ['principal_secretary'];
+    } else if (user.position === 'department_head') {
+      userRoleNames = ['department_head'];
+    } else {
+      userRoleNames = ['user', 'letter_recipient'];
     }
     
-    // If no roles found in user_roles table, check if user has a direct role field
-    if (userRoleNames.length === 0 && user.role) {
-      userRoleNames = [user.role];
-    }
-    
-    // Default to 'user' role if no roles found
-    if (userRoleNames.length === 0) {
-      userRoleNames = ['user'];
-    }
+    console.log(`User ${user.email} assigned roles:`, userRoleNames);
 
     return {
       id: user.id,

@@ -15,6 +15,7 @@ export function registerAuthRoutes(app: Express) {
   app.post('/api/login', async (req, res) => {
     try {
       const { email, password } = loginSchema.parse(req.body);
+      console.log('Login attempt for:', email);
 
       // Find user by email using raw query
       const userResult = await pool.query(
@@ -22,15 +23,20 @@ export function registerAuthRoutes(app: Express) {
         [email]
       );
 
+      console.log('User query result rows:', userResult.rows.length);
       if (userResult.rows.length === 0) {
+        console.log('No user found or user inactive');
         return res.status(401).json({ message: 'Invalid email or password' });
       }
 
       const user = userResult.rows[0];
+      console.log('Found user:', user.email, 'Active:', user.is_active, 'Position:', user.position);
 
       // Verify password
       const isValidPassword = await comparePassword(password, user.password);
+      console.log('Password valid:', isValidPassword);
       if (!isValidPassword) {
+        console.log('Password comparison failed');
         return res.status(401).json({ message: 'Invalid email or password' });
       }
 
@@ -44,7 +50,7 @@ export function registerAuthRoutes(app: Express) {
       let userRoleNames: string[] = [];
       
       // Assign roles based on email and position
-      if (user.email === 'admin@rmu.gov.ke' || user.position === 'Administrator') {
+      if (user.email === 'admin@rmu.gov.ke' || user.position === 'Administrator' || user.position === 'Admin') {
         userRoleNames = ['admin'];
       } else if (user.position === 'registry_admin' || user.department === 'Registry') {
         userRoleNames = ['registry', 'registry_admin'];
