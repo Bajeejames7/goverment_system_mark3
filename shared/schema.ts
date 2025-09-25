@@ -86,9 +86,9 @@ export const folders = pgTable("folders", {
   name: text("name").notNull(),
   description: text("description"),
   department: text("department").notNull(),
-  createdBy: integer("created_by").references(() => users.id), // integer, not string
-  createdAt: timestamp("created_at").defaultNow(),
-  isActive: boolean("is_active").default(true),
+  createdBy: integer("createdBy").references(() => users.id), // Match camelCase database column
+  createdAt: timestamp("createdAt").defaultNow(),
+  isActive: boolean("isActive").default(true),
 });
 
 export const files = pgTable("files", {
@@ -109,33 +109,33 @@ export const letters = pgTable("letters", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   reference: text("reference").notNull().unique(),
-  folderId: integer("folder_id").references(() => folders.id),
-  fileId: integer("file_id").references(() => files.id),
+  folderId: integer("folderId").references(() => folders.id),
+  fileId: integer("fileId").references(() => files.id),
   content: text("content"),
   status: text("status").notNull().default("pending"),
-  letterType: text("letter_type").notNull().default("formal"),
-  requiresPasscode: boolean("requires_passcode").default(false),
+  letterType: text("letterType").notNull().default("formal"),
+  requiresPasscode: boolean("requiresPasscode").default(false),
   passcode: text("passcode"),
-  verificationCode: text("verification_code").unique(),
-  uploadedBy: integer("uploaded_by").references(() => users.id).notNull(),
-  assignedTo: integer("assigned_to").references(() => users.id),
-  assignedBy: integer("assigned_by").references(() => users.id),
-  verifiedBy: integer("verified_by").references(() => users.id),
-  uploadedAt: timestamp("uploaded_at").defaultNow(),
-  openedAt: timestamp("opened_at"),
-  assignedAt: timestamp("assigned_at"),
-  verifiedAt: timestamp("verified_at"),
-  completedAt: timestamp("completed_at"),
-  colorCode: text("color_code").default("gray"),
+  verificationCode: text("verificationCode").unique(),
+  uploadedBy: integer("uploadedBy").references(() => users.id).notNull(),
+  assignedTo: integer("assignedTo").references(() => users.id),
+  assignedBy: integer("assignedBy").references(() => users.id),
+  verifiedBy: integer("verifiedBy").references(() => users.id),
+  uploadedAt: timestamp("uploadedAt").defaultNow(),
+  openedAt: timestamp("openedAt"),
+  assignedAt: timestamp("assignedAt"),
+  verifiedAt: timestamp("verifiedAt"),
+  completedAt: timestamp("completedAt"),
+  colorCode: text("colorCode").default("gray"),
   metadata: jsonb("metadata"),
 });
 
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
   action: text("action").notNull(),
-  entityType: text("entity_type").notNull(), // 'user', 'folder', 'letter'
-  entityId: text("entity_id").notNull(),
-  userId: text("user_id").notNull(), // Firebase UID
+  entityType: text("entityType").notNull(), // Match camelCase database column
+  entityId: text("entityId").notNull(),
+  userId: text("userId").notNull(),
   details: jsonb("details"),
   timestamp: timestamp("timestamp").defaultNow(),
 });

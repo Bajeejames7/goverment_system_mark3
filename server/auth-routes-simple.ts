@@ -126,17 +126,17 @@ export function registerAuthRoutes(app: Express) {
   // Stats endpoint - simplified version
   app.get('/api/stats', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      // Use a simple query approach
-      const totalFoldersResult = await db.execute('SELECT COUNT(*) as count FROM folders WHERE is_active = true');
-      const totalLettersResult = await db.execute('SELECT COUNT(*) as count FROM letters');
-      const pendingLettersResult = await db.execute("SELECT COUNT(*) as count FROM letters WHERE status = 'pending'");
-      const activeUsersResult = await db.execute('SELECT COUNT(*) as count FROM users WHERE is_active = true');
+      // Use Drizzle ORM instead of raw SQL for consistency
+      const totalFoldersResult = await db.select({ count: count() }).from(folders).where(eq(folders.isActive, true));
+      const totalLettersResult = await db.select({ count: count() }).from(letters);
+      const pendingLettersResult = await db.select({ count: count() }).from(letters).where(eq(letters.status, 'pending'));
+      const activeUsersResult = await db.select({ count: count() }).from(users).where(eq(users.isActive, true));
 
       res.json({
-        totalFolders: parseInt(totalFoldersResult.rows[0].count) || 0,
-        activeLetters: parseInt(totalLettersResult.rows[0].count) || 0,
-        pendingVerification: parseInt(pendingLettersResult.rows[0].count) || 0,
-        activeUsers: parseInt(activeUsersResult.rows[0].count) || 0
+        totalFolders: totalFoldersResult[0]?.count || 0,
+        activeLetters: totalLettersResult[0]?.count || 0,
+        pendingVerification: pendingLettersResult[0]?.count || 0,
+        activeUsers: activeUsersResult[0]?.count || 0
       });
     } catch (error) {
       console.error('Stats error:', error);
