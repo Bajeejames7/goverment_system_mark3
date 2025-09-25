@@ -40,20 +40,27 @@ export function registerAuthRoutes(app: Express) {
         [user.id]
       );
 
-      // Get user roles from user_roles table and roles table
-      const rolesResult = await pool.query(`
-        SELECT r.name 
-        FROM roles r
-        INNER JOIN user_roles ur ON r.id = ur.role_id
-        WHERE ur.user_id = $1
-      `, [user.id]);
-
-      let userRoleNames = rolesResult.rows.map(row => row.name);
+      // Assign roles based on user type and position for now
+      let userRoleNames: string[] = [];
       
-      // If no roles found in user_roles table, check if user has a direct role field
-      if (userRoleNames.length === 0 && user.role) {
-        userRoleNames = [user.role];
+      // Assign roles based on email and position
+      if (user.email === 'admin@rmu.gov.ke' || user.position === 'Administrator') {
+        userRoleNames = ['admin'];
+      } else if (user.position === 'registry_admin' || user.department === 'Registry') {
+        userRoleNames = ['registry', 'registry_admin'];
+      } else if (user.position === 'ict_admin' || user.department === 'ICT') {
+        userRoleNames = ['ict', 'ict_admin'];
+      } else if (user.position === 'secretary') {
+        userRoleNames = ['secretary'];
+      } else if (user.position === 'principal_secretary') {
+        userRoleNames = ['principal_secretary'];
+      } else if (user.position === 'department_head') {
+        userRoleNames = ['department_head'];
+      } else {
+        userRoleNames = ['user', 'letter_recipient'];
       }
+      
+      console.log(`User ${user.email} assigned roles:`, userRoleNames);
 
       // Generate JWT token
       const token = generateToken({ 
